@@ -1,6 +1,6 @@
-# CEMS - Campus Emergency and Management System
+# CEMS - College Event Management System
 
-A comprehensive web-based platform designed to integrate emergency medical access, physical identity card verification, campus resource reservations, dynamic refund engines, direct complaint dispatching, and role-based administrative management. Built as an MCA Mini Project.
+A comprehensive web-based platform designed to integrate emergency medical access, physical identity card verification, college event and resource reservations, dynamic refund engines, direct complaint dispatching, and role-based administrative management. Built as an MCA Mini Project.
 
 ---
 
@@ -26,9 +26,9 @@ A comprehensive web-based platform designed to integrate emergency medical acces
 
 Higher educational institutions require streamlined administration for resource allocation (auditoriums, hostel facilities, canteen orders) alongside immediate, frictionless emergency response mechanisms. Traditional campus portals operate in silos, requiring passwords or static QR codes that fail during medical emergencies or when credentials are lost.
 
-The **Campus Emergency and Management System (CEMS)** addresses these challenges by offering a unified full-stack solution:
+The **College Event Management System (CEMS)** addresses these challenges by offering a unified full-stack solution:
 - **Emergency Medical Access**: Enables passwordless, camera-driven identity verification using physical college ID card matching via Computer Vision (OpenCV ORB feature detection) and facial matching against registered profile records.
-- **Integrated Campus Services**: Provides centralized booking for campus facilities, cancellation handling with an automated dynamic refund engine, rebooking authorization, direct-to-principal complaint logging, and role-specific dashboards.
+- **Integrated College Services**: Provides centralized booking for college facilities and events, cancellation handling with an automated dynamic refund engine, rebooking authorization, direct-to-principal complaint logging, and role-specific dashboards.
 
 ---
 
@@ -45,7 +45,7 @@ The **Campus Emergency and Management System (CEMS)** addresses these challenges
 - **Registration and Administrative Validation**: Public registration creates pending accounts requiring explicit Admin validation before granting full portal clearance.
 - **Secure Token-Based Auth**: Utilizes Django REST Framework SimpleJWT for stateless access control with embedded role claims.
 
-### Module 3: Campus Resource Booking System
+### Module 3: College Event & Resource Booking System
 - **Multi-Facility Reservations**: Unified booking pipeline for Auditoriums, Hostel Rooms (AC and Non-AC), and Canteen pre-orders.
 - **Capacity and Slot Tracking**: Manages date, time, duration, unit/seat counts, and associated booking fees.
 

@@ -201,7 +201,7 @@ export default function ComplaintModule({ role = "student" }) {
       {/* ── Notification Banner ── */}
       {notice && (
         <div style={{
-          background: "#F0FDF4", border: `1.5px solid ${sage}`, color: "#166534",
+          background: "#F0FDF4", border: `1.5px solid ${sage}`, color: "#15803D",
           borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13,
           fontWeight: 700, boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
         }}>
@@ -316,8 +316,8 @@ export default function ComplaintModule({ role = "student" }) {
 
             <span style={{
               fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 12,
-              background: c.reply ? "#D1FAE5" : "#FEF3C7",
-              color: c.reply ? "#047857" : "#92400E"
+              background: c.reply ? "#D1FAE5" : "#EFF6FF",
+              color: c.reply ? "#047857" : "#1E40AF"
             }}>
               {c.status}
             </span>
@@ -339,7 +339,7 @@ export default function ComplaintModule({ role = "student" }) {
                 </strong>
                 <span style={{ fontSize: 11, color: "#059669" }}>{c.repliedAt}</span>
               </div>
-              <div style={{ fontSize: 13, color: "#166534", fontStyle: "italic" }}>
+              <div style={{ fontSize: 13, color: "#15803D", fontStyle: "italic" }}>
                 "{c.reply}"
               </div>
             </div>
@@ -349,7 +349,7 @@ export default function ComplaintModule({ role = "student" }) {
           {isPrincipal && (
             <div style={{ marginTop: 14, paddingTop: 10, borderTop: "1px solid #E8D5D8" }}>
               {replyingId === c.id ? (
-                <div style={{ background: "#FFFBEB", border: "1px solid #FCD34D", padding: 12, borderRadius: 10 }}>
+                <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", padding: 12, borderRadius: 10 }}>
                   <Label>Write Official Principal Response</Label>
                   <textarea
                     style={{ ...inputStyle, minHeight: 70, resize: "vertical", marginBottom: 10 }}
@@ -361,7 +361,7 @@ export default function ComplaintModule({ role = "student" }) {
                     <button
                       type="button"
                       onClick={() => { setReplyingId(null); setReplyText(""); }}
-                      style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #9CA3AF", background: "#FFF", fontSize: 12, cursor: "pointer" }}
+                      style={{ padding: "6px 12px", borderRadius: 6, border: "1px solid #64748B", background: "#FFF", fontSize: 12, cursor: "pointer" }}
                     >
                       Cancel
                     </button>

@@ -40,10 +40,10 @@ const INITIAL_HOSTEL_BOOKINGS = [
 ];
 
 const wardenStatusColor = (s) => {
-  if (s === "APPROVED")  return { bg: "#F0FDF4", border: "#86EFAC", text: "#166534" };
-  if (s === "REJECTED")  return { bg: "#FEF2F2", border: "#FCA5A5", text: "#991B1B" };
-  if (s === "PENDING")   return { bg: "#FFFBEB", border: "#FCD34D", text: "#92400E" };
-  return { bg: "#F9FAFB", border: "#D1D5DB", text: "#374151" };
+  if (s === "APPROVED")  return { bg: "#F0FDF4", border: "#BBF7D0", text: "#15803D" };
+  if (s === "REJECTED")  return { bg: "#FEF2F2", border: "#FECACA", text: "#B91C1C" };
+  if (s === "PENDING")   return { bg: "#F8FAFC", border: "#E2E8F0", text: "#1E40AF" };
+  return { bg: "#F8FAFC", border: "#CBD5E1", text: "#334155" };
 };
 
 export default function WardenModule() {
@@ -120,13 +120,13 @@ export default function WardenModule() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px,1fr))", gap: 12, marginBottom: 22 }}>
         {[
           { label: "Total Requests", value: stats.total,    color: maroonDark, icon: "📋" },
-          { label: "Pending",        value: stats.pending,  color: "#92400E",  icon: "⏳" },
-          { label: "Approved",       value: stats.approved, color: "#166534",  icon: "✅" },
-          { label: "Rejected",       value: stats.rejected, color: "#991B1B",  icon: "❌" },
+          { label: "Pending",        value: stats.pending,  color: "#1E40AF",  icon: "⏳" },
+          { label: "Approved",       value: stats.approved, color: "#15803D",  icon: "✅" },
+          { label: "Rejected",       value: stats.rejected, color: "#B91C1C",  icon: "❌" },
           { label: "Revenue",        value: `₹${totalRevenue.toLocaleString()}`, color: "#1D4ED8", icon: "💰" },
         ].map((st) => (
           <div key={st.label} style={{
-            background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 10,
+            background: "#FFF", border: "1px solid #E2E8F0", borderRadius: 10,
             padding: "14px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", textAlign: "center",
           }}>
             <div style={{ fontSize: 22 }}>{st.icon}</div>
@@ -141,15 +141,15 @@ export default function WardenModule() {
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
           <input type="text" placeholder="🔍 Search booking or applicant..." value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #D1D5DB", fontSize: 13, flex: "1 1 200px", background: "#FFF" }}
+            style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid #CBD5E1", fontSize: 13, flex: "1 1 200px", background: "#FFF" }}
           />
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
             {["ALL","PENDING","APPROVED","REJECTED"].map((s) => (
               <button key={s} onClick={() => setFilterStatus(s)} style={{
                 padding: "6px 12px", borderRadius: 6, border: "none", fontSize: 12, fontWeight: 700,
                 cursor: "pointer",
-                background: filterStatus === s ? maroonDark : "#E5E7EB",
-                color: filterStatus === s ? "#FFF" : "#374151",
+                background: filterStatus === s ? maroonDark : "#E2E8F0",
+                color: filterStatus === s ? "#FFF" : "#334155",
                 transition: "all 0.15s ease",
               }}>
                 {s === "ALL" ? "All Requests" : s.charAt(0) + s.slice(1).toLowerCase()}
@@ -163,7 +163,7 @@ export default function WardenModule() {
       {filtered.length === 0 ? (
         <div style={{
           textAlign: "center", padding: "50px 20px", color: "#6B7280",
-          background: "#FAFAFA", borderRadius: 12, border: "1px dashed #D1D5DB",
+          background: "#F8FAFC", borderRadius: 12, border: "1px dashed #CBD5E1",
         }}>
           <div style={{ fontSize: 40, marginBottom: 10 }}>🏨</div>
           <div style={{ fontWeight: 700, fontSize: 15, color: maroonDark, marginBottom: 4 }}>No Hostel Requests Found</div>
@@ -198,17 +198,17 @@ export default function WardenModule() {
                       <span style={{ background: col.bg, border: `1px solid ${col.border}`, color: col.text, fontWeight: 800, fontSize: 11, padding: "3px 10px", borderRadius: 20 }}>
                         {ws}
                       </span>
-                      <span style={{ fontSize: 18, color: "#9CA3AF" }}>{isExpanded ? "▲" : "▼"}</span>
+                      <span style={{ fontSize: 18, color: "#64748B" }}>{isExpanded ? "▲" : "▼"}</span>
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12, color: "#374151", fontWeight: 600 }}>
+                    <span style={{ fontSize: 12, color: "#334155", fontWeight: 600 }}>
                       🛏️ {booking.roomType || "Room not specified"}
                     </span>
                     <span style={{ fontSize: 12, color: "#1D4ED8", fontWeight: 700 }}>
                       💰 ₹{(booking.amount || 0).toLocaleString()}
                     </span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: booking.paymentStatus === "PAID" ? "#166534" : "#D97706" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: booking.paymentStatus === "PAID" ? "#15803D" : "#3B82F6" }}>
                       {booking.paymentStatus === "PAID" ? "✅ Paid" : booking.paymentStatus === "REFUNDED" ? "↩️ Refunded" : "⚠️ Unpaid"}
                     </span>
                     <span style={{ fontSize: 12, color: "#6B7280" }}>ID: {booking.id}</span>
@@ -220,12 +220,12 @@ export default function WardenModule() {
                   <div style={{ padding: "16px 18px", borderTop: `1px solid ${col.border}` }}>
                     {/* Booking Details Grid */}
                     <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px,1fr))", gap: 10, marginBottom: 16 }}>
-                      <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, padding: "10px 14px" }}>
+                      <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 14px" }}>
                         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 4 }}>APPLICANT</div>
                         <div style={{ fontWeight: 700, color: maroonDark }}>{booking.applicant}</div>
                         <div style={{ fontSize: 12, color: "#6B7280" }}>{booking.applicantRole}</div>
                       </div>
-                      <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, padding: "10px 14px" }}>
+                      <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 14px" }}>
                         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 4 }}>ROOM TYPE</div>
                         <div style={{ fontWeight: 700, color: maroonDark }}>
                           {booking.roomType && booking.roomType !== "N/A" ? booking.roomType : "Not specified"}
@@ -234,15 +234,15 @@ export default function WardenModule() {
                           {booking.roomType && booking.roomType.toLowerCase().includes("ac") ? "Air Conditioned" : "Non-AC"}
                         </div>
                       </div>
-                      <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, padding: "10px 14px" }}>
+                      <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 14px" }}>
                         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 4 }}>CHECK-IN DATE</div>
                         <div style={{ fontWeight: 700, color: maroonDark }}>{booking.date}</div>
                         <div style={{ fontSize: 12, color: "#6B7280" }}>Submitted: {booking.submittedAt}</div>
                       </div>
-                      <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8, padding: "10px 14px" }}>
+                      <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 14px" }}>
                         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 4 }}>BOOKING FEE</div>
-                        <div style={{ fontWeight: 900, fontSize: 18, color: "#166534" }}>₹{(booking.amount || 0).toLocaleString()}</div>
-                        <div style={{ fontSize: 12, color: booking.paymentStatus === "PAID" ? "#166534" : "#D97706", fontWeight: 600 }}>
+                        <div style={{ fontWeight: 900, fontSize: 18, color: "#15803D" }}>₹{(booking.amount || 0).toLocaleString()}</div>
+                        <div style={{ fontSize: 12, color: booking.paymentStatus === "PAID" ? "#15803D" : "#3B82F6", fontWeight: 600 }}>
                           {booking.paymentStatus === "PAID" ? `✅ Paid via ${booking.paymentMethod}` : "⚠️ Payment Pending"}
                         </div>
                       </div>
@@ -251,8 +251,8 @@ export default function WardenModule() {
                     {/* Purpose / Details */}
                     {booking.details && (
                       <div style={{
-                        background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 8,
-                        padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#4B5563",
+                        background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8,
+                        padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#475569",
                       }}>
                         <span style={{ fontWeight: 700, color: maroonDark }}>📝 Details: </span>{booking.details}
                       </div>
@@ -261,8 +261,8 @@ export default function WardenModule() {
                     {/* Payment Txn Info */}
                     {booking.paymentStatus === "PAID" && booking.paymentTxnId && (
                       <div style={{
-                        background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8,
-                        padding: "8px 14px", marginBottom: 14, fontSize: 12, color: "#166534", fontWeight: 600,
+                        background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8,
+                        padding: "8px 14px", marginBottom: 14, fontSize: 12, color: "#15803D", fontWeight: 600,
                       }}>
                         ✅ Txn Ref: {booking.paymentTxnId} · Paid on: {booking.paidAt || "N/A"}
                       </div>
@@ -296,9 +296,9 @@ export default function WardenModule() {
                     ) : (
                       <div style={{
                         background: ws === "APPROVED" ? "#F0FDF4" : "#FEF2F2",
-                        border: `1px solid ${ws === "APPROVED" ? "#86EFAC" : "#FCA5A5"}`,
+                        border: `1px solid ${ws === "APPROVED" ? "#BBF7D0" : "#FECACA"}`,
                         borderRadius: 8, padding: "12px 16px", fontSize: 13, fontWeight: 700,
-                        color: ws === "APPROVED" ? "#166534" : "#991B1B",
+                        color: ws === "APPROVED" ? "#15803D" : "#B91C1C",
                         display: "flex", alignItems: "center", gap: 8,
                       }}>
                         {ws === "APPROVED"

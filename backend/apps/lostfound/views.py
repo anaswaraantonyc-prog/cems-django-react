@@ -3,11 +3,11 @@ FILE: apps/lostfound/views.py
 PURPOSE: API endpoints to report lost/found items, list them, view
          auto-suggested matches, and confirm a match/claim.
 """
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from .models import LostFoundItem
-from .serializers import LostFoundItemSerializer, MatchConfirmSerializer
+from .models import LostFoundItem, LostFoundMessage
+from .serializers import LostFoundItemSerializer, MatchConfirmSerializer, LostFoundMessageSerializer
 from .matching import find_candidate_matches, link_match
 from .services import notify_possible_matches
 from .permissions import IsReporterOrReadOnly
@@ -43,3 +43,11 @@ class LostFoundItemViewSet(viewsets.ModelViewSet):
         other = LostFoundItem.objects.get(pk=serializer.validated_data['matched_item_id'])
         link_match(item, other)
         return Response(LostFoundItemSerializer(item).data)
+
+    @action(detail=True, methods=['post'], url_path='messages')
+    def add_message(self, request, pk=None):
+        item = self.get_object()
+        serializer = LostFoundMessageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(item=item, sender=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

@@ -72,9 +72,9 @@ const INITIAL_CANTEEN_ORDERS = [
 ];
 
 const statusStyle = (s) => {
-  if (s === "APPROVED") return { bg: "#F0FDF4", border: "#86EFAC", text: "#166534", dot: "#16A34A" };
-  if (s === "REJECTED") return { bg: "#FEF2F2", border: "#FCA5A5", text: "#991B1B", dot: "#DC2626" };
-  return { bg: "#FFFBEB", border: "#FCD34D", text: "#92400E", dot: "#D97706" };
+  if (s === "APPROVED") return { bg: "#F0FDF4", border: "#BBF7D0", text: "#15803D", dot: "#16A34A" };
+  if (s === "REJECTED") return { bg: "#FEF2F2", border: "#FECACA", text: "#B91C1C", dot: "#DC2626" };
+  return { bg: "#F8FAFC", border: "#E2E8F0", text: "#1E40AF", dot: "#3B82F6" };
 };
 
 export default function CanteenModule() {
@@ -178,13 +178,13 @@ export default function CanteenModule() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))", gap: 12, marginBottom: 22 }}>
         {[
           { label: "Total Orders",   value: counts.all,      color: maroonDark,  icon: "📋" },
-          { label: "Pending Review", value: counts.pending,  color: "#92400E",   icon: "⏳" },
-          { label: "Approved",       value: counts.approved, color: "#166534",   icon: "✅" },
-          { label: "Rejected",       value: counts.rejected, color: "#991B1B",   icon: "❌" },
+          { label: "Pending Review", value: counts.pending,  color: "#1E40AF",   icon: "⏳" },
+          { label: "Approved",       value: counts.approved, color: "#15803D",   icon: "✅" },
+          { label: "Rejected",       value: counts.rejected, color: "#B91C1C",   icon: "❌" },
           { label: "Approved Revenue", value: `₹${totalRevenue.toLocaleString()}`, color: "#1D4ED8", icon: "💰" },
         ].map((st) => (
           <div key={st.label} style={{
-            background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 10,
+            background: "#FFF", border: "1px solid #E2E8F0", borderRadius: 10,
             padding: "14px 12px", boxShadow: "0 1px 4px rgba(0,0,0,0.05)", textAlign: "center",
           }}>
             <div style={{ fontSize: 20 }}>{st.icon}</div>
@@ -196,7 +196,7 @@ export default function CanteenModule() {
 
       {/* ── Filter Bar ── */}
       <div style={{
-        background: "#FFF", border: "1px solid #E5E7EB", borderRadius: 10,
+        background: "#FFF", border: "1px solid #E2E8F0", borderRadius: 10,
         padding: "12px 14px", marginBottom: 16,
         display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center",
         boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
@@ -208,7 +208,7 @@ export default function CanteenModule() {
           onChange={(e) => setSearch(e.target.value)}
           style={{
             flex: "1 1 220px", padding: "8px 14px", borderRadius: 8,
-            border: "1px solid #D1D5DB", fontSize: 13, background: "#FAFAFA",
+            border: "1px solid #CBD5E1", fontSize: 13, background: "#F8FAFC",
           }}
         />
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -222,7 +222,7 @@ export default function CanteenModule() {
               padding: "7px 14px", borderRadius: 7, border: "none",
               fontSize: 12, fontWeight: 700, cursor: "pointer",
               background: filterStatus === f.id ? maroonDark : "#F3F4F6",
-              color: filterStatus === f.id ? "#FFF" : "#374151",
+              color: filterStatus === f.id ? "#FFF" : "#334155",
               transition: "all 0.15s ease",
             }}>
               {f.label}
@@ -235,7 +235,7 @@ export default function CanteenModule() {
       {filtered.length === 0 ? (
         <div style={{
           textAlign: "center", padding: "60px 20px", color: "#6B7280",
-          background: "#FAFAFA", borderRadius: 12, border: "1.5px dashed #D1D5DB",
+          background: "#F8FAFC", borderRadius: 12, border: "1.5px dashed #CBD5E1",
         }}>
           <div style={{ fontSize: 48, marginBottom: 12 }}>🍱</div>
           <div style={{ fontWeight: 800, fontSize: 16, color: maroonDark, marginBottom: 6 }}>No Orders Found</div>
@@ -276,15 +276,15 @@ export default function CanteenModule() {
                           👤 <strong>{order.applicant}</strong> &nbsp;·&nbsp;
                           🎓 {order.applicantRole} &nbsp;·&nbsp;
                           📅 {order.date} &nbsp;·&nbsp;
-                          <span style={{ color: "#9CA3AF" }}>ID: {order.id}</span>
+                          <span style={{ color: "#64748B" }}>ID: {order.id}</span>
                         </div>
                         <div style={{ display: "flex", gap: 12, marginTop: 7, flexWrap: "wrap" }}>
-                          <span style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>📦 {totalQty} items</span>
-                          <span style={{ fontSize: 12, fontWeight: 800, color: "#166534" }}>💰 ₹{(order.amount || 0).toLocaleString()}</span>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: order.paymentStatus === "PAID" ? "#166534" : "#D97706" }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>📦 {totalQty} items</span>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: "#15803D" }}>💰 ₹{(order.amount || 0).toLocaleString()}</span>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: order.paymentStatus === "PAID" ? "#15803D" : "#3B82F6" }}>
                             {order.paymentStatus === "PAID" ? "✅ Paid" : order.paymentStatus === "REFUNDED" ? "↩️ Refunded" : "⚠️ Unpaid"}
                           </span>
-                          <span style={{ fontSize: 11, color: "#9CA3AF" }}>Submitted: {order.submittedAt}</span>
+                          <span style={{ fontSize: 11, color: "#64748B" }}>Submitted: {order.submittedAt}</span>
                         </div>
                       </div>
                     </div>
@@ -312,8 +312,8 @@ export default function CanteenModule() {
                       const qty = items[m.id] || 0;
                       return (
                         <div key={m.id} style={{
-                          background: qty > 0 ? "#F0FDF4" : "#F9FAFB",
-                          border: `1px solid ${qty > 0 ? "#86EFAC" : "#E5E7EB"}`,
+                          background: qty > 0 ? "#F0FDF4" : "#F8FAFC",
+                          border: `1px solid ${qty > 0 ? "#BBF7D0" : "#E2E8F0"}`,
                           borderRadius: 8, padding: "10px 12px",
                           opacity: qty === 0 ? 0.45 : 1,
                           textAlign: "center",
@@ -323,11 +323,11 @@ export default function CanteenModule() {
                           <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>₹{m.price} / item</div>
                           {qty > 0 ? (
                             <>
-                              <div style={{ fontWeight: 900, fontSize: 14, color: "#166534", marginTop: 6 }}>{qty}</div>
-                              <div style={{ fontSize: 11, color: "#4B5563" }}>= ₹{qty * m.price}</div>
+                              <div style={{ fontWeight: 900, fontSize: 14, color: "#15803D", marginTop: 6 }}>{qty}</div>
+                              <div style={{ fontSize: 11, color: "#475569" }}>= ₹{qty * m.price}</div>
                             </>
                           ) : (
-                            <div style={{ fontSize: 12, color: "#9CA3AF", marginTop: 6 }}>—</div>
+                            <div style={{ fontSize: 12, color: "#64748B", marginTop: 6 }}>—</div>
                           )}
                         </div>
                       );
@@ -337,11 +337,11 @@ export default function CanteenModule() {
                   {/* Grand Total */}
                   <div style={{
                     display: "flex", justifyContent: "space-between", alignItems: "center",
-                    marginTop: 12, background: "#FFF9EC", border: `1px dashed ${gold}`,
+                    marginTop: 12, background: "#F8FAFC", border: `1px dashed ${gold}`,
                     borderRadius: 8, padding: "9px 14px", fontSize: 13,
                   }}>
-                    <span style={{ color: "#4B5563" }}>Total Items: <strong style={{ color: maroonDark }}>{totalQty}</strong></span>
-                    <span style={{ fontWeight: 900, fontSize: 15, color: "#166534" }}>Grand Total: ₹{(order.amount || 0).toLocaleString()}</span>
+                    <span style={{ color: "#475569" }}>Total Items: <strong style={{ color: maroonDark }}>{totalQty}</strong></span>
+                    <span style={{ fontWeight: 900, fontSize: 15, color: "#15803D" }}>Grand Total: ₹{(order.amount || 0).toLocaleString()}</span>
                   </div>
                 </div>
 
@@ -349,8 +349,8 @@ export default function CanteenModule() {
                 {cs === "REJECTED" && order.rejectionReason && (
                   <div style={{
                     margin: "0 18px", marginTop: 12,
-                    background: "#FEF2F2", border: "1px solid #FCA5A5",
-                    borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#991B1B",
+                    background: "#FEF2F2", border: "1px solid #FECACA",
+                    borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#B91C1C",
                   }}>
                     <span style={{ fontWeight: 700 }}>❌ Rejection Reason: </span>{order.rejectionReason}
                   </div>
@@ -403,13 +403,13 @@ export default function CanteenModule() {
                       {isRejecting && (
                         <div style={{
                           marginTop: 12,
-                          background: "#FFF5F5",
-                          border: "1.5px solid #FCA5A5",
+                          background: "#FEF2F2",
+                          border: "1.5px solid #FECACA",
                           borderRadius: 10,
                           padding: "14px 16px",
                           animation: "fadeIn 0.2s ease",
                         }}>
-                          <label style={{ fontSize: 13, fontWeight: 700, color: "#991B1B", display: "block", marginBottom: 8 }}>
+                          <label style={{ fontSize: 13, fontWeight: 700, color: "#B91C1C", display: "block", marginBottom: 8 }}>
                             ❌ Reason for Rejection <span style={{ fontWeight: 400, color: "#6B7280" }}>(optional but recommended)</span>
                           </label>
                           <textarea
@@ -422,9 +422,9 @@ export default function CanteenModule() {
                             style={{
                               width: "100%", boxSizing: "border-box",
                               padding: "10px 12px", borderRadius: 8,
-                              border: "1.5px solid #FCA5A5", fontSize: 13,
+                              border: "1.5px solid #FECACA", fontSize: 13,
                               fontFamily: "inherit", resize: "vertical",
-                              background: "#FFF", color: "#374151",
+                              background: "#FFF", color: "#334155",
                               outline: "none",
                             }}
                           />
@@ -433,7 +433,7 @@ export default function CanteenModule() {
                               onClick={() => setRejectingId(null)}
                               style={{
                                 padding: "8px 16px", borderRadius: 7,
-                                border: "1px solid #D1D5DB", background: "#FFF",
+                                border: "1px solid #CBD5E1", background: "#FFF",
                                 color: "#6B7280", fontWeight: 700, fontSize: 12, cursor: "pointer",
                               }}
                             >
@@ -462,9 +462,9 @@ export default function CanteenModule() {
                       <div style={{
                         flex: 1,
                         background: cs === "APPROVED" ? "#F0FDF4" : "#FEF2F2",
-                        border: `1px solid ${cs === "APPROVED" ? "#86EFAC" : "#FCA5A5"}`,
+                        border: `1px solid ${cs === "APPROVED" ? "#BBF7D0" : "#FECACA"}`,
                         borderRadius: 8, padding: "10px 14px", fontSize: 13, fontWeight: 700,
-                        color: cs === "APPROVED" ? "#166534" : "#991B1B",
+                        color: cs === "APPROVED" ? "#15803D" : "#B91C1C",
                       }}>
                         {cs === "APPROVED"
                           ? "✅ Order approved — canteen is preparing this order."
@@ -474,7 +474,7 @@ export default function CanteenModule() {
                         onClick={() => resetOrder(order.id)}
                         style={{
                           padding: "8px 16px", borderRadius: 7,
-                          border: "1px solid #D1D5DB", background: "#FFF",
+                          border: "1px solid #CBD5E1", background: "#FFF",
                           color: "#6B7280", fontWeight: 700, fontSize: 12, cursor: "pointer",
                           whiteSpace: "nowrap",
                         }}

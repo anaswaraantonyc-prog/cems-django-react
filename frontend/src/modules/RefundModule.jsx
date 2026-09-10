@@ -218,7 +218,7 @@ export default function RefundModule({ role = "student" }) {
       {isPrincipal ? (
         <div
           style={{
-            background: `linear-gradient(135deg, ${maroonDark} 0%, #4A121A 100%)`,
+            background: `linear-gradient(135deg, ${maroonDark} 0%, #0B132B 100%)`,
             border: `1.5px solid ${gold}`,
             borderRadius: 12,
             padding: "16px 20px",
@@ -243,8 +243,8 @@ export default function RefundModule({ role = "student" }) {
         /* Hour Policy banner for Student, Faculty & Class Rep Roles */
         <div
           style={{
-            background: "#FFFBEB",
-            border: "1.5px solid #FCD34D",
+            background: "#F8FAFC",
+            border: "1.5px solid #E2E8F0",
             borderRadius: 12,
             padding: "14px 18px",
             marginBottom: 20,
@@ -270,7 +270,7 @@ export default function RefundModule({ role = "student" }) {
           {error && (
             <div
               style={{
-                background: "#FFF5F5",
+                background: "#FEF2F2",
                 border: `1px solid ${brick}`,
                 borderRadius: 8,
                 padding: "10px 14px",
@@ -293,7 +293,7 @@ export default function RefundModule({ role = "student" }) {
                 padding: "10px 14px",
                 marginBottom: 14,
                 fontSize: 13,
-                color: "#166534",
+                color: "#15803D",
                 fontWeight: 600,
               }}
             >
@@ -349,7 +349,7 @@ export default function RefundModule({ role = "student" }) {
       {/* Refund History & Approval Ledger Section */}
       <Card style={{ padding: 20 }}>
         {/* Filter Tabs */}
-        <div style={{ display: "flex", gap: 10, borderBottom: "2px solid #E5E7EB", paddingBottom: 12, marginBottom: 16, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 10, borderBottom: "2px solid #E2E8F0", paddingBottom: 12, marginBottom: 16, flexWrap: "wrap" }}>
           <button
             onClick={() => setActiveTab("ALL")}
             style={{
@@ -360,7 +360,7 @@ export default function RefundModule({ role = "student" }) {
               fontWeight: 700,
               cursor: "pointer",
               background: activeTab === "ALL" ? maroonDark : "#F3F4F6",
-              color: activeTab === "ALL" ? "#FFF" : "#4B5563",
+              color: activeTab === "ALL" ? "#FFF" : "#475569",
               transition: "all 0.15s ease",
             }}
           >
@@ -377,7 +377,7 @@ export default function RefundModule({ role = "student" }) {
               fontWeight: 700,
               cursor: "pointer",
               background: activeTab === "PENDING" ? gold : "#F3F4F6",
-              color: activeTab === "PENDING" ? "#FFF" : "#4B5563",
+              color: activeTab === "PENDING" ? "#FFF" : "#475569",
               transition: "all 0.15s ease",
             }}
           >
@@ -394,7 +394,7 @@ export default function RefundModule({ role = "student" }) {
               fontWeight: 700,
               cursor: "pointer",
               background: activeTab === "APPROVED" ? sage : "#F3F4F6",
-              color: activeTab === "APPROVED" ? "#FFF" : "#4B5563",
+              color: activeTab === "APPROVED" ? "#FFF" : "#475569",
               transition: "all 0.15s ease",
             }}
           >
@@ -411,7 +411,7 @@ export default function RefundModule({ role = "student" }) {
               fontWeight: 700,
               cursor: "pointer",
               background: activeTab === "REJECTED" ? brick : "#F3F4F6",
-              color: activeTab === "REJECTED" ? "#FFF" : "#4B5563",
+              color: activeTab === "REJECTED" ? "#FFF" : "#475569",
               transition: "all 0.15s ease",
             }}
           >
@@ -425,7 +425,7 @@ export default function RefundModule({ role = "student" }) {
             display: "flex",
             justify: "space-between",
             alignItems: "center",
-            background: "#FAFAFA",
+            background: "#F8FAFC",
             padding: 12,
             borderRadius: 10,
             border: "1px solid #EEEEEE",
@@ -444,7 +444,7 @@ export default function RefundModule({ role = "student" }) {
             style={{
               padding: "6px 12px",
               borderRadius: 6,
-              border: "1px solid #D1D5DB",
+              border: "1px solid #CBD5E1",
               fontSize: 12,
               width: 240,
               background: "#FFF",
@@ -463,7 +463,7 @@ export default function RefundModule({ role = "student" }) {
               <div
                 key={r.id}
                 style={{
-                  border: "1px solid #E5E7EB",
+                  border: "1px solid #E2E8F0",
                   borderRadius: 10,
                   padding: 14,
                   background: r.status.includes("Pending") ? "#FFFDF5" : "#FFFFFF",
@@ -496,7 +496,7 @@ export default function RefundModule({ role = "student" }) {
                   />
                 </div>
 
-                <div style={{ fontSize: 13, color: "#4B5563", background: "#F9FAFB", padding: "8px 12px", borderRadius: 6 }}>
+                <div style={{ fontSize: 13, color: "#475569", background: "#F8FAFC", padding: "8px 12px", borderRadius: 6 }}>
                   "{r.reason}"
                 </div>
 
@@ -509,7 +509,7 @@ export default function RefundModule({ role = "student" }) {
 
                 {/* Principal Approval / Rejection Action Buttons */}
                 {isPrincipal && r.status.includes("Pending") && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 8, borderTop: "1px dashed #E5E7EB", justifyContent: "flex-end" }}>
+                  <div style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 8, borderTop: "1px dashed #E2E8F0", justifyContent: "flex-end" }}>
                     <button
                       onClick={() => handleSignOff(r.id, "Approved")}
                       style={{ ...buttonStyle("primary"), fontSize: 12, padding: "6px 14px", background: sage }}

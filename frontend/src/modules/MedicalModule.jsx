@@ -374,7 +374,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                 <span style={{ fontSize: 12, color: "#666" }}>Loading available representatives...</span>
               </div>
             ) : staffList.length === 0 ? (
-              <div style={{ padding: "12px", background: "#FFF5F5", borderRadius: 8, fontSize: 12, color: brick, border: `1px dashed ${brick}` }}>
+              <div style={{ padding: "12px", background: "#FEF2F2", borderRadius: 8, fontSize: 12, color: brick, border: `1px dashed ${brick}` }}>
                 ⚠️ No medical staff on duty. Please use campus emergency services.
               </div>
             ) : (
@@ -839,9 +839,9 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
           </div>
 
           {sosSuccess ? (
-            <div style={{ background: "#F0FDF4", border: "1.5px solid #86EFAC", borderRadius: 12, padding: "20px", textAlign: "center" }}>
+            <div style={{ background: "#F0FDF4", border: "1.5px solid #BBF7D0", borderRadius: 12, padding: "20px", textAlign: "center" }}>
               <span style={{ fontSize: 42 }}>✅</span>
-              <h4 style={{ margin: "10px 0 4px 0", color: "#166534", fontSize: 18, fontWeight: 800 }}>
+              <h4 style={{ margin: "10px 0 4px 0", color: "#15803D", fontSize: 18, fontWeight: 800 }}>
                 Emergency Alert Dispatched!
               </h4>
               <p style={{ fontSize: 13, color: "#15803D", margin: "0 0 14px 0" }}>
@@ -854,7 +854,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
               </div>
               <button
                 onClick={() => setSosSuccess(null)}
-                style={{ padding: "8px 20px", background: "#166534", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 }}
+                style={{ padding: "8px 20px", background: "#15803D", color: "#fff", border: "none", borderRadius: 8, fontWeight: 700, cursor: "pointer", fontSize: 13 }}
               >
                 + Submit Another Report
               </button>
@@ -969,7 +969,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
               Loading access logs…
             </div>
           ) : logsError ? (
-            <div style={{ padding: "12px", background: "#FFF5F5", borderRadius: 8, color: brick, fontSize: 12 }}>
+            <div style={{ padding: "12px", background: "#FEF2F2", borderRadius: 8, color: brick, fontSize: 12 }}>
               ⚠️ {logsError}
             </div>
           ) : logsList.length === 0 ? (
@@ -1023,7 +1023,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                 <div key={i} style={{ background: "#FAF6F0", border: `1px solid ${line}`, borderRadius: 10, padding: "12px 14px" }}>
                   <div style={{ fontWeight: 800, fontSize: 13, color: maroonDark }}>{st.location}</div>
                   <div style={{ fontSize: 11, color: "#6B644C", marginTop: 2 }}>📍 {st.area}</div>
-                  <div style={{ fontSize: 11, color: "#166534", marginTop: 4, fontWeight: 700 }}>{st.status}</div>
+                  <div style={{ fontSize: 11, color: "#15803D", marginTop: 4, fontWeight: 700 }}>{st.status}</div>
                   <div style={{ fontSize: 11, color: maroon, marginTop: 4, fontWeight: 600 }}>📞 Hotline: {st.phone}</div>
                 </div>
               ))}

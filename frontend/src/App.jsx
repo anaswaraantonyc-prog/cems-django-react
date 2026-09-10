@@ -9,7 +9,6 @@ import {
 import Navbar from "./components/Navbar";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
-import RainingFlowers from "./components/RainingFlowers";
 
 import BookingModule   from "./modules/BookingModule";
 import RefundModule    from "./modules/RefundModule";
@@ -21,6 +20,153 @@ import AccessModule    from "./modules/AccessModule";
 import RegistrationModule from "./modules/RegistrationModule";
 import CanteenModule   from "./modules/CanteenModule";
 import WardenModule    from "./modules/WardenModule";
+import LostFoundModule from "./modules/LostFoundModule";
+
+/* ── SVG Icons for sidebar modules ─────────────────────── */
+const ModuleIcon = ({ name, active }) => {
+  const color = active ? "#FFFFFF" : "rgba(255,255,255,0.5)";
+  const icons = {
+    booking: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+    ),
+    refund: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+    ),
+    rebook: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+      </svg>
+    ),
+    medical: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19.5 12.572L12 20l-7.5-7.428A5 5 0 1 1 12 6.006a5 5 0 1 1 7.5 6.572"/>
+      </svg>
+    ),
+    complaint: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    ),
+    register: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+      </svg>
+    ),
+    canteen: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
+      </svg>
+    ),
+    warden: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    ),
+    ledger: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+    ),
+    lostfound: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+      </svg>
+    ),
+    access: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    ),
+  };
+  return icons[name] || null;
+};
+
+/* ── Role labels without emojis ────────────────────────── */
+const roleLabelsClean = {
+  canteen: "Canteen Staff",
+  student: "Student",
+  principal: "Principal",
+  warden: "Hostel Warden",
+  faculty: "Faculty",
+  class_rep: "Class Representative",
+  admin: "Admin",
+};
+
+/* ── Main page header icon ─────────────────────────────── */
+const PageHeaderIcon = ({ name }) => {
+  const color = "#1D4ED8";
+  const icons = {
+    booking: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
+    ),
+    refund: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+    ),
+    rebook: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>
+      </svg>
+    ),
+    medical: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M19.5 12.572L12 20l-7.5-7.428A5 5 0 1 1 12 6.006a5 5 0 1 1 7.5 6.572"/>
+      </svg>
+    ),
+    complaint: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+      </svg>
+    ),
+    register: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>
+      </svg>
+    ),
+    canteen: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/>
+      </svg>
+    ),
+    warden: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+    ),
+    ledger: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+    ),
+    lostfound: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+      </svg>
+    ),
+    access: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+    ),
+  };
+  return (
+    <div style={{
+      width: 40, height: 40, borderRadius: 12,
+      background: "#EFF6FF",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      flexShrink: 0,
+    }}>
+      {icons[name] || null}
+    </div>
+  );
+};
 
 export default function App() {
   const [view, setView]               = useState("login");
@@ -77,8 +223,7 @@ export default function App() {
   ══════════════════════════════════════════ */
   if (view === "login" || view === "register") {
     return (
-      <div style={{ fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh", position: "relative" }}>
-        <RainingFlowers color={maroonSoft} count={32} />
+      <div style={{ minHeight: "100vh", position: "relative" }}>
         <Navbar view={view} onNav={setView} onEmergency={() => setView("login")} />
         {view === "login" && (
           <LoginPage
@@ -87,15 +232,6 @@ export default function App() {
           />
         )}
         {view === "register" && <RegisterPage onGoLogin={() => setView("login")} />}
-        <div style={{ textAlign: "center", padding: "12px 0",
-          background: offWhite, borderTop: `1px solid #E8D8C0` }}>
-          <button onClick={() => setView("dashboard")}
-            style={{ background: "none", border: "none",
-              color: brownLight, fontSize: 12, cursor: "pointer",
-              textDecoration: "underline" }}>
-            Skip to dashboard (demo)
-          </button>
-        </div>
       </div>
     );
   }
@@ -104,42 +240,54 @@ export default function App() {
      DASHBOARD
   ══════════════════════════════════════════ */
   return (
-    <div style={{ fontFamily: "'Inter', system-ui, sans-serif",
-      ...mainFloral, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
-
+    <div style={{
+      minHeight: "100vh", display: "flex", flexDirection: "column",
+      background: "#F8FAFC",
+    }}>
 
       {/* ── top navbar ── */}
       <header style={{
-        ...sidebarFloral,
+        background: "linear-gradient(90deg, #0a192f 0%, #1c2541 100%)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 24px", height: 56,
-        boxShadow: "0 2px 12px rgba(74,18,28,0.25)",
+        padding: "0 24px", height: 60,
+        boxShadow: "0 4px 24px rgba(10, 25, 47, 0.2)",
         position: "sticky", top: 0, zIndex: 20,
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: "50%",
-            border: `2px solid ${gold}`,
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: "linear-gradient(135deg, #1d4ed8, #1e40af)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: gold, fontFamily: "Georgia, serif", fontWeight: 700, fontSize: 14 }}>
+            color: "#ffffff", fontWeight: 800, fontSize: 16,
+            boxShadow: "0 4px 14px rgba(29, 78, 216, 0.35)",
+          }}>
             C
           </div>
           <div>
-            <div style={{ fontFamily: "Georgia, serif", fontSize: 17, fontWeight: 700,
-              color: offWhite, letterSpacing: "0.02em" }}>CEMS</div>
-            <div style={{ fontSize: 9, color: goldLight, letterSpacing: "0.12em" }}>
+            <div style={{
+              fontSize: 17, fontWeight: 800,
+              color: "#ffffff", letterSpacing: "-0.01em"
+            }}>CEMS</div>
+            <div style={{
+              fontSize: 9, color: "rgba(203,213,225,0.7)", letterSpacing: "0.12em", fontWeight: 600
+            }}>
               CAMPUS EVENT MANAGEMENT
             </div>
           </div>
         </div>
 
-        {/* ── Role switcher & Sign out ── */}
+        {/* Role switcher & Sign out */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
-            background: "rgba(0,0,0,0.30)", padding: "5px 12px",
-            borderRadius: 20, border: "1px solid rgba(255,255,255,0.18)"
+            background: "rgba(255,255,255,0.06)", padding: "6px 14px",
+            borderRadius: 9999, border: "1px solid rgba(255,255,255,0.1)"
           }}>
-            <span style={{ fontSize: 11, color: goldLight, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700 }}>
+            <span style={{
+              fontSize: 11, color: "rgba(203,213,225,0.7)",
+              textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700
+            }}>
               Role:
             </span>
             <select
@@ -147,7 +295,7 @@ export default function App() {
               onChange={(e) => selectRole(e.target.value)}
               style={{
                 background: "transparent",
-                color: offWhite,
+                color: "#FFFFFF",
                 border: "none",
                 fontSize: 12,
                 fontWeight: 700,
@@ -155,58 +303,73 @@ export default function App() {
                 outline: "none",
               }}
             >
-              <option value="canteen" style={{ background: maroonDark, color: "#FFF" }}>🍱 Canteen Staff (Neethu)</option>
-              <option value="student" style={{ background: maroonDark, color: "#FFF" }}>🎓 Student</option>
-              <option value="principal" style={{ background: maroonDark, color: "#FFF" }}>🏛️ Principal</option>
-              <option value="warden" style={{ background: maroonDark, color: "#FFF" }}>🏨 Hostel Warden</option>
-              <option value="faculty" style={{ background: maroonDark, color: "#FFF" }}>👨‍🏫 Faculty</option>
-              <option value="class_rep" style={{ background: maroonDark, color: "#FFF" }}>⭐ Class Representative</option>
-              <option value="admin" style={{ background: maroonDark, color: "#FFF" }}>⚙️ Admin</option>
+              <option value="canteen" style={{ background: "#0B132B", color: "#FFF" }}>Canteen Staff (Neethu)</option>
+              <option value="student" style={{ background: "#0B132B", color: "#FFF" }}>Student</option>
+              <option value="principal" style={{ background: "#0B132B", color: "#FFF" }}>Principal</option>
+              <option value="warden" style={{ background: "#0B132B", color: "#FFF" }}>Hostel Warden</option>
+              <option value="faculty" style={{ background: "#0B132B", color: "#FFF" }}>Faculty</option>
+              <option value="class_rep" style={{ background: "#0B132B", color: "#FFF" }}>Class Representative</option>
+              <option value="admin" style={{ background: "#0B132B", color: "#FFF" }}>Admin</option>
             </select>
           </div>
 
           <button onClick={() => setView("login")}
-            style={{ background: "rgba(255,255,255,0.12)", border: `1px solid rgba(255,255,255,0.3)`,
-              color: offWhite, fontSize: 12, padding: "6px 14px", borderRadius: 20,
-              cursor: "pointer", fontWeight: 600 }}>
-            ← Sign out
+            style={{
+              background: "rgba(255,255,255,0.08)",
+              border: "1px solid rgba(255,255,255,0.15)",
+              color: "#FFFFFF", fontSize: 12, padding: "7px 16px", borderRadius: 9999,
+              cursor: "pointer", fontWeight: 600,
+              display: "flex", alignItems: "center", gap: 6,
+              transition: "all 0.2s ease",
+            }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+              stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Sign out
           </button>
         </div>
       </header>
 
-      <div style={{ display: "flex", flex: 1 }}>
+      <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
 
         {/* ── sidebar ── */}
-        <aside style={{
-          ...sidebarFloral,
-          width: 230, flexShrink: 0, padding: "20px 14px",
-          borderRight: `1px solid ${maroonDark}`,
+        <aside className="dashboard-sidebar" style={{
+          background: "linear-gradient(180deg, #0a192f 0%, #1c2541 100%)",
+          width: 240, flexShrink: 0, padding: "20px 14px",
+          borderRight: "1px solid rgba(255,255,255,0.06)",
           display: "flex", flexDirection: "column", gap: 0,
+          overflowY: "auto",
         }}>
 
-          {/* modules */}
-          <div style={{ fontSize: 10, color: goldLight, letterSpacing: "0.1em",
-            textTransform: "uppercase", marginBottom: 8, paddingLeft: 4 }}>
+          {/* modules label */}
+          <div style={{
+            fontSize: 10, color: "rgba(203,213,225,0.5)", letterSpacing: "0.1em",
+            textTransform: "uppercase", marginBottom: 10, paddingLeft: 12, fontWeight: 700,
+          }}>
             Modules
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {modules.map((m) => {
               const active = current === m;
               return (
                 <button key={m} onClick={() => setActiveModule(m)}
                   style={{
-                    textAlign: "left", padding: "9px 12px", borderRadius: 8,
-                    border: active ? `1px solid ${gold}55` : "1px solid transparent",
+                    textAlign: "left", padding: "10px 12px", borderRadius: 10,
+                    border: "none",
                     cursor: "pointer", fontSize: 13,
-                    fontWeight: active ? 700 : 400,
+                    fontWeight: active ? 700 : 500,
                     background: active
-                      ? "rgba(201,154,60,0.18)"
+                      ? "rgba(29, 78, 216, 0.2)"
                       : "transparent",
-                    color: active ? gold : "rgba(255,255,255,0.65)",
-                    display: "flex", alignItems: "center", gap: 8,
-                    transition: "all 0.15s",
+                    color: active ? "#FFFFFF" : "rgba(255,255,255,0.55)",
+                    display: "flex", alignItems: "center", gap: 10,
+                    transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+                    letterSpacing: active ? "0.01em" : "0",
                   }}>
-                  <span style={{ fontSize: 15 }}>{moduleIcons[m]}</span>
+                  <ModuleIcon name={m} active={active} />
                   {moduleLabels[m]}
                 </button>
               );
@@ -214,50 +377,82 @@ export default function App() {
           </div>
 
           {/* bottom: signed in as */}
-          <div style={{ marginTop: "auto", paddingTop: 16,
-            borderTop: "1px solid rgba(255,255,255,0.10)",
-            fontSize: 11, color: "rgba(255,255,255,0.45)", paddingLeft: 4 }}>
-            Signed in as:
-            <div style={{ color: goldLight, fontWeight: 700, fontSize: 13, marginTop: 3 }}>
-              {role === "canteen" ? (userName ? `${userName} (Canteen Staff)` : "Neethu (Canteen Staff)") : (userName || roles.find(r => r.id === role)?.label)}
+          <div style={{
+            marginTop: "auto", paddingTop: 16,
+            borderTop: "1px solid rgba(255,255,255,0.06)",
+            paddingLeft: 12,
+          }}>
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 6, fontWeight: 600 }}>
+              Signed in as
             </div>
-            <div style={{ color: "rgba(255,255,255,0.55)", fontSize: 10, marginTop: 1 }}>
-              {roles.find(r => r.id === role)?.label}
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+            }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: "linear-gradient(135deg, #1d4ed8, #1e40af)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#FFFFFF", fontSize: 13, fontWeight: 700, flexShrink: 0,
+              }}>
+                {(userName || roles.find(r => r.id === role)?.label || "U").charAt(0).toUpperCase()}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{
+                  color: "#FFFFFF", fontWeight: 700, fontSize: 13,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>
+                  {role === "canteen" ? (userName ? `${userName}` : "Neethu") : (userName || roles.find(r => r.id === role)?.label)}
+                </div>
+                <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 10 }}>
+                  {roleLabelsClean[role] || roles.find(r => r.id === role)?.label}
+                </div>
+              </div>
             </div>
           </div>
         </aside>
 
         {/* ── main content ── */}
-        <main style={{ flex: 1, padding: "28px 36px", overflowY: "auto" }}>
+        <main className="dashboard-main" style={{
+          flex: 1, padding: "28px 36px", overflowY: "auto",
+          background: "#F8FAFC",
+        }}>
 
           {/* page header */}
-          <div style={{ marginBottom: 24, paddingBottom: 16,
-            borderBottom: `1.5px solid #FFFFFF` }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span style={{ fontSize: 26 }}>{moduleIcons[current]}</span>
+          <div style={{
+            marginBottom: 28, paddingBottom: 18,
+            borderBottom: "1.5px solid #E2E8F0",
+            animation: "fadeIn 0.3s ease",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <PageHeaderIcon name={current} />
               <div>
-                <h1 style={{ margin: 0, fontFamily: "Georgia, serif", fontSize: 22,
-                  fontWeight: 700, color: maroonDark }}>
+                <h1 style={{
+                  margin: 0, fontSize: 22,
+                  fontWeight: 800, color: "#0A192F", letterSpacing: "-0.02em",
+                }}>
                   {moduleLabels[current]}
                 </h1>
-                <div style={{ fontSize: 12, color: brownLight, marginTop: 2 }}>
-                  {roles.find(r => r.id === role)?.label} dashboard
+                <div style={{ fontSize: 13, color: "#64748B", marginTop: 3 }}>
+                  {roleLabelsClean[role] || roles.find(r => r.id === role)?.label} dashboard
                 </div>
               </div>
             </div>
           </div>
 
           {/* module content */}
-          {current === "register"  && <RegistrationModule />}
-          {current === "booking"   && <BookingModule role={role} />}
-          {current === "refund"    && <RefundModule role={role} />}
-          {current === "rebook"    && <RebookModule role={role} />}
-          {current === "medical"   && <MedicalModule />}
-          {current === "complaint" && <ComplaintModule role={role} />}
-          {current === "ledger"    && <LedgerModule />}
-          {current === "access"    && <AccessModule accessToken={accessToken} />}
-          {current === "canteen"   && <CanteenModule />}
-          {current === "warden"    && <WardenModule />}
+          <div style={{ animation: "slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+            {current === "register"  && <RegistrationModule />}
+            {current === "booking"   && <BookingModule role={role} />}
+            {current === "refund"    && <RefundModule role={role} />}
+            {current === "rebook"    && <RebookModule role={role} />}
+            {current === "medical"   && <MedicalModule />}
+            {current === "complaint" && <ComplaintModule role={role} />}
+            {current === "ledger"    && <LedgerModule />}
+            {current === "lostfound" && <LostFoundModule role={role} />}
+            {current === "access"    && <AccessModule accessToken={accessToken} />}
+            {current === "canteen"   && <CanteenModule />}
+            {current === "warden"    && <WardenModule />}
+          </div>
         </main>
       </div>
     </div>

@@ -19,8 +19,8 @@ function authHeader() {
 const ROLE_COLOR = {
   STUDENT:              { bg: "#EBF5FF", color: "#1565C0", label: "Student" },
   FACULTY:              { bg: "#FFF3E0", color: "#E65100", label: "Faculty" },
-  CLASS_REP:            { bg: "#FEF3C7", color: "#92400E", label: "Class Rep" },
-  CANTEEN_STAFF:        { bg: "#DCFCE7", color: "#166534", label: "Canteen Staff" },
+  CLASS_REP:            { bg: "#EFF6FF", color: "#1E40AF", label: "Class Rep" },
+  CANTEEN_STAFF:        { bg: "#DCFCE7", color: "#15803D", label: "Canteen Staff" },
   WARDEN:               { bg: "#EDE9FE", color: "#5B21B6", label: "Hostel Warden" },
   EXTERNAL_PARTICIPANT: { bg: "#F3E5F5", color: "#6A1B9A", label: "External" },
   ADMIN:                { bg: "#FCE4EC", color: "#880E4F", label: "Admin" },
@@ -709,7 +709,7 @@ export default function RegistrationModule() {
                         <RoleBadge role={item.role} />
                       </div>
 
-                      <div style={{ fontSize: 13, color: "#4B5563", marginTop: 6 }}>
+                      <div style={{ fontSize: 13, color: "#475569", marginTop: 6 }}>
                         📧 {item.email} · Department: <strong>{item.department || "N/A"}</strong> · ID: <strong>{item.id_number}</strong>
                       </div>
 
@@ -727,7 +727,7 @@ export default function RegistrationModule() {
                       }}>
                         {isAccepted ? "✅ ACCEPTED & APPROVED" : "❌ REJECTED & DELETED"}
                       </span>
-                      <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 6, fontWeight: 500 }}>
+                      <div style={{ fontSize: 11, color: "#64748B", marginTop: 6, fontWeight: 500 }}>
                         Decision Date: {item.decidedAt}
                       </div>
                     </div>

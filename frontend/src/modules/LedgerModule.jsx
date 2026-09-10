@@ -135,7 +135,7 @@ export default function LedgerModule() {
       {/* ── Action Feedback Notice ── */}
       {actionNotice && (
         <div style={{
-          background: "#F0FDF4", border: `1.5px solid ${sage}`, color: "#166534",
+          background: "#F0FDF4", border: `1.5px solid ${sage}`, color: "#15803D",
           borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13,
           fontWeight: 700, boxShadow: "0 2px 8px rgba(0,0,0,0.05)"
         }}>
@@ -237,7 +237,7 @@ export default function LedgerModule() {
 
             <Card style={{ marginBottom: 0, borderLeft: "4px solid #F59E0B" }}>
               <Label>Pending Approvals</Label>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#B45309" }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#1D4ED8" }}>
                 {registrations.filter((r) => r.status === "pending").length} Awaiting
               </div>
               <div style={{ fontSize: 11, color: brownLight, marginTop: 4 }}>
@@ -277,7 +277,7 @@ export default function LedgerModule() {
                       </span>
                     </div>
 
-                    <div style={{ fontSize: 13, color: "#4B5563", marginTop: 4 }}>
+                    <div style={{ fontSize: 13, color: "#475569", marginTop: 4 }}>
                       📧 {reg.email} · Department: <strong>{reg.dept}</strong>
                     </div>
                     <div style={{ fontSize: 12, color: "#6B644C", marginTop: 2 }}>
@@ -312,7 +312,7 @@ export default function LedgerModule() {
             ))}
 
             {pendingRegs.length === 0 && (
-              <Card style={{ textAlign: "center", padding: "28px", background: "#F9FAFB" }}>
+              <Card style={{ textAlign: "center", padding: "28px", background: "#F8FAFC" }}>
                 <div style={{ fontSize: 24 }}>✨</div>
                 <div style={{ fontWeight: 700, color: maroonDark, marginTop: 4 }}>No Pending Registrations</div>
                 <div style={{ fontSize: 12, color: "#6B644C" }}>All submitted user registration requests have been reviewed.</div>
@@ -330,7 +330,7 @@ export default function LedgerModule() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ fontWeight: 700, color: maroonDark }}>{reg.name} ({reg.role})</div>
-                    <div style={{ fontSize: 12, color: "#4B5563", marginTop: 2 }}>
+                    <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
                       {reg.email} · ID: {reg.idCard} · Department: {reg.dept}
                     </div>
                     <div style={{ fontSize: 11, color: "#047857", marginTop: 4 }}>
@@ -393,7 +393,7 @@ export default function LedgerModule() {
 
               <Card style={{ marginBottom: 0, borderLeft: `4px solid ${gold}` }}>
                 <Label>Active Venue Reservations</Label>
-                <div style={{ fontSize: 24, fontWeight: 900, color: "#B45309" }}>
+                <div style={{ fontSize: 24, fontWeight: 900, color: "#1D4ED8" }}>
                   {bookingList.length} Total Logs
                 </div>
                 <div style={{ fontSize: 11, color: brownLight, marginTop: 4 }}>
@@ -437,12 +437,12 @@ export default function LedgerModule() {
                     >
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                          <span style={{ fontSize: 11, fontWeight: 800, color: maroonDark, background: "#FFF", padding: "2px 6px", borderRadius: 4, border: "1px solid #E5E7EB" }}>
+                          <span style={{ fontSize: 11, fontWeight: 800, color: maroonDark, background: "#FFF", padding: "2px 6px", borderRadius: 4, border: "1px solid #E2E8F0" }}>
                             {b.id}
                           </span>
                           <strong style={{ fontSize: 14, color: maroonDark }}>{b.title}</strong>
                         </div>
-                        <div style={{ fontSize: 12, color: "#4B5563", marginTop: 4 }}>
+                        <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
                           Venue: <strong>{b.venue}</strong> · Applicant: <strong>{b.applicant || b.bookedBy}</strong>
                         </div>
                         <div style={{ fontSize: 11, color: "#6B644C", marginTop: 2 }}>
@@ -451,10 +451,10 @@ export default function LedgerModule() {
                       </div>
 
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontWeight: 900, color: isPaid ? "#059669" : "#D97706", fontSize: 15 }}>
+                        <div style={{ fontWeight: 900, color: isPaid ? "#059669" : "#3B82F6", fontSize: 15 }}>
                           ₹{itemAmount.toLocaleString()}
                         </div>
-                        <div style={{ fontSize: 11, marginTop: 2, fontWeight: 700, color: isPaid ? "#166534" : "#B45309" }}>
+                        <div style={{ fontSize: 11, marginTop: 2, fontWeight: 700, color: isPaid ? "#15803D" : "#1D4ED8" }}>
                           {isPaid ? `✅ Paid via ${b.paymentMethod || "UPI"}` : "⚠️ Payment Due"}
                         </div>
                         {b.paymentTxnId && (

@@ -458,7 +458,7 @@ export default function BookingModule({ role = "student" }) {
       {isPrincipal ? (
         <div
           style={{
-            background: `linear-gradient(135deg, ${maroonDark} 0%, #4A121A 100%)`,
+            background: `linear-gradient(135deg, ${maroonDark} 0%, #0B132B 100%)`,
             border: `1.5px solid ${gold}`,
             borderRadius: 12,
             padding: "16px 20px",
@@ -483,12 +483,12 @@ export default function BookingModule({ role = "student" }) {
         /* ── Role Clearance Banner (For Non-Principal Roles like Student) ── */
         <div
           style={{
-            background: isStudent ? "#FFFBEB" : "#F0FDF4",
-            border: `1.5px solid ${isStudent ? "#FCD34D" : "#86EFAC"}`,
+            background: isStudent ? "#F8FAFC" : "#F0FDF4",
+            border: `1.5px solid ${isStudent ? "#E2E8F0" : "#BBF7D0"}`,
             borderRadius: 12,
             padding: "16px 20px",
             marginBottom: 20,
-            color: isStudent ? "#92400E" : "#166534",
+            color: isStudent ? "#1E40AF" : "#15803D",
             boxShadow: "0 4px 12px rgba(0,0,0,0.06)",
           }}
         >
@@ -534,7 +534,7 @@ export default function BookingModule({ role = "student" }) {
           {error && (
             <div
               style={{
-                background: "#FFF5F5",
+                background: "#FEF2F2",
                 border: `1px solid ${brick}`,
                 borderRadius: 8,
                 padding: "10px 14px",
@@ -591,7 +591,7 @@ export default function BookingModule({ role = "student" }) {
             {venue === "Canteen / program food" && (
               <div
                 style={{
-                  background: "#FFFBF0",
+                  background: "#F8FAFC",
                   border: `1.5px solid ${gold}`,
                   borderRadius: 10,
                   padding: 16,
@@ -600,7 +600,7 @@ export default function BookingModule({ role = "student" }) {
               >
                 <div style={{ fontWeight: 800, fontSize: 14, color: maroonDark, marginBottom: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span>🍱 Select Refreshment Menu Items & Quantities</span>
-                  <span style={{ fontSize: 12, color: "#92400E", fontWeight: 700 }}>
+                  <span style={{ fontSize: 12, color: "#1E40AF", fontWeight: 700 }}>
                     Unit Prices Enforced
                   </span>
                 </div>
@@ -614,7 +614,7 @@ export default function BookingModule({ role = "student" }) {
                         key={item.id}
                         style={{
                           background: "#FFFFFF",
-                          border: `1.5px solid ${qty > 0 ? maroonDark : "#E5E7EB"}`,
+                          border: `1.5px solid ${qty > 0 ? maroonDark : "#E2E8F0"}`,
                           borderRadius: 8,
                           padding: 12,
                           display: "flex",
@@ -628,7 +628,7 @@ export default function BookingModule({ role = "student" }) {
                           <span style={{ fontWeight: 700, fontSize: 14, color: maroonDark }}>
                             {item.icon} {item.name}
                           </span>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#4B5563", background: "#F3F4F6", padding: "2px 6px", borderRadius: 4 }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: "#475569", background: "#F3F4F6", padding: "2px 6px", borderRadius: 4 }}>
                             ₹{item.price} / item
                           </span>
                         </div>
@@ -641,8 +641,8 @@ export default function BookingModule({ role = "student" }) {
                               width: 32,
                               height: 32,
                               borderRadius: 6,
-                              border: "1px solid #D1D5DB",
-                              background: "#F9FAFB",
+                              border: "1px solid #CBD5E1",
+                              background: "#F8FAFC",
                               color: maroonDark,
                               fontWeight: 800,
                               fontSize: 16,
@@ -665,7 +665,7 @@ export default function BookingModule({ role = "student" }) {
                               textAlign: "center",
                               padding: "4px",
                               borderRadius: 6,
-                              border: `1px solid ${qty > 0 ? maroonDark : "#D1D5DB"}`,
+                              border: `1px solid ${qty > 0 ? maroonDark : "#CBD5E1"}`,
                               fontSize: 14,
                               fontWeight: 700,
                               color: maroonDark,
@@ -694,7 +694,7 @@ export default function BookingModule({ role = "student" }) {
                           </button>
                         </div>
 
-                        <div style={{ fontSize: 12, textAlign: "right", fontWeight: 700, color: qty > 0 ? "#166534" : "#9CA3AF" }}>
+                        <div style={{ fontSize: 12, textAlign: "right", fontWeight: 700, color: qty > 0 ? "#15803D" : "#64748B" }}>
                           Subtotal: ₹{subtotal}
                         </div>
                       </div>
@@ -716,11 +716,11 @@ export default function BookingModule({ role = "student" }) {
                     fontSize: 13,
                   }}
                 >
-                  <div style={{ color: "#4B5563" }}>
+                  <div style={{ color: "#475569" }}>
                     Total Selected Items: <strong style={{ color: maroonDark }}>{totalFoodQuantity}</strong>
                   </div>
                   <div style={{ fontWeight: 800, fontSize: 15, color: maroonDark }}>
-                    Total Order Bill: <span style={{ color: "#166534", fontSize: 16 }}>₹{totalFoodAmount}</span>
+                    Total Order Bill: <span style={{ color: "#15803D", fontSize: 16 }}>₹{totalFoodAmount}</span>
                   </div>
                 </div>
               </div>
@@ -732,7 +732,7 @@ export default function BookingModule({ role = "student" }) {
 
             {/* ── Payment Method Section ── */}
             <div style={{
-              background: "linear-gradient(135deg, #FFFBF0, #FFF9EC)",
+              background: "linear-gradient(135deg, #F8FAFC, #F8FAFC)",
               border: `1.5px solid ${gold}`,
               borderRadius: 12,
               padding: 18,
@@ -758,9 +758,9 @@ export default function BookingModule({ role = "student" }) {
                     style={{
                       padding: "10px 12px",
                       borderRadius: 8,
-                      border: `1.5px solid ${formPayMethod === m.id ? maroonDark : "#D1D5DB"}`,
-                      background: formPayMethod === m.id ? "#FFF5F5" : "#FFF",
-                      color: formPayMethod === m.id ? maroonDark : "#4B5563",
+                      border: `1.5px solid ${formPayMethod === m.id ? maroonDark : "#CBD5E1"}`,
+                      background: formPayMethod === m.id ? "#FEF2F2" : "#FFF",
+                      color: formPayMethod === m.id ? maroonDark : "#475569",
                       fontWeight: formPayMethod === m.id ? 800 : 600,
                       fontSize: 12,
                       cursor: "pointer",
@@ -798,8 +798,8 @@ export default function BookingModule({ role = "student" }) {
                           setFormUpiId(`${base}${tag}`);
                         }}
                         style={{
-                          background: "#FFF", border: "1px solid #D1D5DB", borderRadius: 4,
-                          padding: "2px 8px", fontSize: 11, color: "#4B5563", cursor: "pointer",
+                          background: "#FFF", border: "1px solid #CBD5E1", borderRadius: 4,
+                          padding: "2px 8px", fontSize: 11, color: "#475569", cursor: "pointer",
                         }}
                       >
                         {tag}
@@ -876,11 +876,11 @@ export default function BookingModule({ role = "student" }) {
               {/* Campus Wallet */}
               {formPayMethod === "WALLET" && (
                 <div style={{
-                  background: "#F0FDF4", border: "1px solid #86EFAC",
+                  background: "#F0FDF4", border: "1px solid #BBF7D0",
                   borderRadius: 8, padding: "10px 14px", fontSize: 13,
                 }}>
-                  <div style={{ fontWeight: 700, color: "#166534", marginBottom: 4 }}>👛 Campus Wallet Balance: ₹2,450</div>
-                  <div style={{ fontSize: 12, color: "#4B5563" }}>Payment will be instantly debited from your CEMS campus wallet.</div>
+                  <div style={{ fontWeight: 700, color: "#15803D", marginBottom: 4 }}>👛 Campus Wallet Balance: ₹2,450</div>
+                  <div style={{ fontSize: 12, color: "#475569" }}>Payment will be instantly debited from your CEMS campus wallet.</div>
                 </div>
               )}
 
@@ -896,7 +896,7 @@ export default function BookingModule({ role = "student" }) {
                 alignItems: "center",
                 fontSize: 13,
               }}>
-                <span style={{ color: "#4B5563" }}>Booking Fee</span>
+                <span style={{ color: "#475569" }}>Booking Fee</span>
                 <span style={{ fontWeight: 900, fontSize: 16, color: maroonDark }}>
                   ₹{getBookingFee(venue, roomType, totalFoodAmount).toLocaleString()}
                 </span>
@@ -912,7 +912,7 @@ export default function BookingModule({ role = "student" }) {
             <div style={{
               marginTop: 18,
               background: "linear-gradient(135deg, #F0FDF4, #ECFDF5)",
-              border: "1.5px solid #86EFAC",
+              border: "1.5px solid #BBF7D0",
               borderRadius: 12,
               overflow: "hidden",
               boxShadow: "0 4px 12px rgba(22,163,74,0.12)",
@@ -935,24 +935,24 @@ export default function BookingModule({ role = "student" }) {
                   {confirmed.eventName}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12 }}>
-                  <div style={{ color: "#4B5563" }}>📍 Venue</div>
+                  <div style={{ color: "#475569" }}>📍 Venue</div>
                   <div style={{ fontWeight: 700, color: maroonDark }}>{confirmed.venue}{confirmed.venue === "Hostel" ? ` (${confirmed.roomType})` : ""}</div>
-                  <div style={{ color: "#4B5563" }}>📅 Date</div>
+                  <div style={{ color: "#475569" }}>📅 Date</div>
                   <div style={{ fontWeight: 700, color: maroonDark }}>{confirmed.date}</div>
-                  <div style={{ color: "#4B5563" }}>💳 Paid via</div>
-                  <div style={{ fontWeight: 700, color: "#166534" }}>
+                  <div style={{ color: "#475569" }}>💳 Paid via</div>
+                  <div style={{ fontWeight: 700, color: "#15803D" }}>
                     {confirmed.paymentMethod === "UPI" ? "📱 UPI"
                       : confirmed.paymentMethod === "CARD" ? "💳 Card"
                       : confirmed.paymentMethod === "NET_BANKING" ? "🏦 Net Banking"
                       : "👛 Campus Wallet"}
                   </div>
-                  <div style={{ color: "#4B5563" }}>🔖 Txn Ref</div>
-                  <div style={{ fontWeight: 700, color: "#374151", fontSize: 11 }}>{confirmed.txnRef}</div>
-                  <div style={{ color: "#4B5563" }}>💰 Amount Paid</div>
-                  <div style={{ fontWeight: 900, fontSize: 15, color: "#166534" }}>₹{(confirmed.amount || 0).toLocaleString()}</div>
+                  <div style={{ color: "#475569" }}>🔖 Txn Ref</div>
+                  <div style={{ fontWeight: 700, color: "#334155", fontSize: 11 }}>{confirmed.txnRef}</div>
+                  <div style={{ color: "#475569" }}>💰 Amount Paid</div>
+                  <div style={{ fontWeight: 900, fontSize: 15, color: "#15803D" }}>₹{(confirmed.amount || 0).toLocaleString()}</div>
                 </div>
                 <div style={{
-                  marginTop: 12, background: "#FFF", border: "1px dashed #86EFAC",
+                  marginTop: 12, background: "#FFF", border: "1px dashed #BBF7D0",
                   borderRadius: 8, padding: "8px 12px", fontSize: 12, color: "#4A7C59", fontWeight: 600,
                 }}>
                   ⏳ Status: Pending Principal / Warden Review — you will be notified once approved.
@@ -968,7 +968,7 @@ export default function BookingModule({ role = "student" }) {
         {/* Header info bar */}
         <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
-          marginBottom: 16, paddingBottom: 12, borderBottom: "2px solid #E5E7EB"
+          marginBottom: 16, paddingBottom: 12, borderBottom: "2px solid #E2E8F0"
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <span style={{ fontSize: 22 }}>🎭</span>
@@ -994,8 +994,8 @@ export default function BookingModule({ role = "student" }) {
         {/* Info chips — Canteen and Hostel redirects */}
         <div style={{ display: "flex", gap: 8, marginBottom: 14, flexWrap: "wrap" }}>
           <div style={{
-            background: "#FFF3CD", border: "1px solid #FCD34D", borderRadius: 8,
-            padding: "6px 12px", fontSize: 12, color: "#92400E", fontWeight: 600
+            background: "#FFF3CD", border: "1px solid #E2E8F0", borderRadius: 8,
+            padding: "6px 12px", fontSize: 12, color: "#1E40AF", fontWeight: 600
           }}>
             🍱 Food / Canteen orders → <strong>Canteen Module</strong>
           </div>
@@ -1016,7 +1016,7 @@ export default function BookingModule({ role = "student" }) {
             onChange={(e) => setSearchQuery(e.target.value)}
             style={{
               padding: "8px 14px", borderRadius: 8,
-              border: "1px solid #D1D5DB", fontSize: 13,
+              border: "1px solid #CBD5E1", fontSize: 13,
               width: "100%", boxSizing: "border-box", background: "#FFF",
             }}
           />
@@ -1026,7 +1026,7 @@ export default function BookingModule({ role = "student" }) {
         {filteredBookings.length === 0 ? (
           <div style={{
             textAlign: "center", padding: "40px 20px", color: "#6B7280", fontSize: 14,
-            background: "#FAFAFA", borderRadius: 10, border: "1px dashed #D1D5DB"
+            background: "#F8FAFC", borderRadius: 10, border: "1px dashed #CBD5E1"
           }}>
             <div style={{ fontSize: 32, marginBottom: 8 }}>🎭</div>
             <div style={{ fontWeight: 700, marginBottom: 4, color: maroonDark }}>No Pending Auditorium Requests</div>
@@ -1039,7 +1039,7 @@ export default function BookingModule({ role = "student" }) {
               <div
                 key={item.id}
                 style={{
-                  border: "1px solid #E5E7EB",
+                  border: "1px solid #E2E8F0",
                   borderRadius: 10,
                   padding: 14,
                   background: item.status.includes("PENDING") ? "#FFFDF5" : "#FFFFFF",
@@ -1076,7 +1076,7 @@ export default function BookingModule({ role = "student" }) {
                   <div>{getStatusBadge(item.status)}</div>
                 </div>
 
-                <div style={{ fontSize: 13, color: "#4B5563", background: "#F9FAFB", padding: "8px 12px", borderRadius: 6 }}>
+                <div style={{ fontSize: 13, color: "#475569", background: "#F8FAFC", padding: "8px 12px", borderRadius: 6 }}>
                   {item.details}
                 </div>
 
@@ -1099,7 +1099,7 @@ export default function BookingModule({ role = "student" }) {
                     </span>
 
                     {item.paymentStatus === "PAID" ? (
-                      <span style={{ color: "#166534", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}>
+                      <span style={{ color: "#15803D", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}>
                         ✅ Paid via {item.paymentMethod || "UPI"} <span style={{ opacity: 0.7, fontWeight: 500 }}>(Ref: {item.paymentTxnId || "N/A"})</span>
                       </span>
                     ) : item.paymentStatus === "REFUNDED" ? (
@@ -1107,7 +1107,7 @@ export default function BookingModule({ role = "student" }) {
                         ↩️ Refund Settled (Ref: {item.paymentTxnId || "N/A"})
                       </span>
                     ) : (
-                      <span style={{ color: "#D97706", fontWeight: 700 }}>
+                      <span style={{ color: "#3B82F6", fontWeight: 700 }}>
                         ⚠️ Payment Pending
                       </span>
                     )}
@@ -1119,7 +1119,7 @@ export default function BookingModule({ role = "student" }) {
                         onClick={() => setSelectedBookingForReceipt(item)}
                         style={{
                           background: "#F3F4F6",
-                          border: "1px solid #D1D5DB",
+                          border: "1px solid #CBD5E1",
                           borderRadius: 6,
                           padding: "4px 10px",
                           fontSize: 11,
@@ -1173,7 +1173,7 @@ export default function BookingModule({ role = "student" }) {
 
                 {/* Principal Quick Approval Actions */}
                 {isPrincipal && item.status.includes("PENDING") && (
-                  <div style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 8, borderTop: "1px dashed #E5E7EB", justifyContent: "flex-end" }}>
+                  <div style={{ display: "flex", gap: 8, marginTop: 6, paddingTop: 8, borderTop: "1px dashed #E2E8F0", justifyContent: "flex-end" }}>
                     <button
                       onClick={() => handleUpdateStatus(item.id, "CONFIRMED")}
                       style={{
@@ -1241,7 +1241,7 @@ export default function BookingModule({ role = "student" }) {
             {/* Modal Header */}
             <div
               style={{
-                background: `linear-gradient(135deg, ${maroonDark}, #4A121A)`,
+                background: `linear-gradient(135deg, ${maroonDark}, #0B132B)`,
                 color: "#FFF",
                 padding: "16px 20px",
                 display: "flex",
@@ -1280,8 +1280,8 @@ export default function BookingModule({ role = "student" }) {
               {/* Order Summary Box */}
               <div
                 style={{
-                  background: "#F9FAFB",
-                  border: "1px solid #E5E7EB",
+                  background: "#F8FAFC",
+                  border: "1px solid #E2E8F0",
                   borderRadius: 10,
                   padding: 12,
                   marginBottom: 16,
@@ -1300,11 +1300,11 @@ export default function BookingModule({ role = "student" }) {
                     alignItems: "center",
                     marginTop: 8,
                     paddingTop: 8,
-                    borderTop: "1px dashed #D1D5DB",
+                    borderTop: "1px dashed #CBD5E1",
                   }}
                 >
-                  <span style={{ fontSize: 13, fontWeight: 700, color: "#374151" }}>Payable Amount:</span>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: "#166534" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "#334155" }}>Payable Amount:</span>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: "#15803D" }}>
                     ₹{(selectedBookingForPayment.amount || getBookingFee(selectedBookingForPayment.venue, selectedBookingForPayment.roomType)).toLocaleString()}
                   </span>
                 </div>
@@ -1332,9 +1332,9 @@ export default function BookingModule({ role = "student" }) {
                       style={{
                         padding: "8px 10px",
                         borderRadius: 8,
-                        border: `1.5px solid ${payMethod === m.id ? maroonDark : "#D1D5DB"}`,
-                        background: payMethod === m.id ? "#FFF5F5" : "#FFF",
-                        color: payMethod === m.id ? maroonDark : "#374151",
+                        border: `1.5px solid ${payMethod === m.id ? maroonDark : "#CBD5E1"}`,
+                        background: payMethod === m.id ? "#FEF2F2" : "#FFF",
+                        color: payMethod === m.id ? maroonDark : "#334155",
                         fontWeight: payMethod === m.id ? 800 : 600,
                         fontSize: 12,
                         cursor: "pointer",
@@ -1353,7 +1353,7 @@ export default function BookingModule({ role = "student" }) {
               {paymentError && (
                 <div
                   style={{
-                    background: "#FFF5F5",
+                    background: "#FEF2F2",
                     border: `1px solid ${brick}`,
                     borderRadius: 8,
                     padding: "8px 12px",
@@ -1371,7 +1371,7 @@ export default function BookingModule({ role = "student" }) {
               {payMethod === "UPI" && (
                 <div
                   style={{
-                    background: "#FFFBF0",
+                    background: "#F8FAFC",
                     border: `1px solid ${gold}`,
                     borderRadius: 10,
                     padding: 14,
@@ -1390,7 +1390,7 @@ export default function BookingModule({ role = "student" }) {
                       width: "100%",
                       padding: "8px 12px",
                       borderRadius: 6,
-                      border: "1px solid #D1D5DB",
+                      border: "1px solid #CBD5E1",
                       fontSize: 13,
                       marginBottom: 8,
                       background: "#FFF",
@@ -1408,11 +1408,11 @@ export default function BookingModule({ role = "student" }) {
                         }}
                         style={{
                           background: "#FFF",
-                          border: "1px solid #D1D5DB",
+                          border: "1px solid #CBD5E1",
                           borderRadius: 4,
                           padding: "2px 6px",
                           fontSize: 11,
-                          color: "#4B5563",
+                          color: "#475569",
                           cursor: "pointer",
                         }}
                       >
@@ -1424,7 +1424,7 @@ export default function BookingModule({ role = "student" }) {
                   {/* QR Code Simulation Container */}
                   <div
                     style={{
-                      borderTop: "1px dashed #FCD34D",
+                      borderTop: "1px dashed #E2E8F0",
                       paddingTop: 10,
                       display: "flex",
                       alignItems: "center",
@@ -1436,7 +1436,7 @@ export default function BookingModule({ role = "student" }) {
                         width: 70,
                         height: 70,
                         background: "#FFF",
-                        border: "2px solid #374151",
+                        border: "2px solid #334155",
                         borderRadius: 6,
                         padding: 4,
                         display: "flex",
@@ -1465,37 +1465,37 @@ export default function BookingModule({ role = "student" }) {
 
               {/* CARD Tab View */}
               {payMethod === "CARD" && (
-                <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+                <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 10, padding: 12, marginBottom: 16 }}>
                   <div style={{ marginBottom: 8 }}>
-                    <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block" }}>Card Number</label>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: "#334155", display: "block" }}>Card Number</label>
                     <input
                       type="text"
                       placeholder="4532 •••• •••• 8912"
                       value={cardDetails.number}
                       onChange={(e) => setCardDetails({ ...cardDetails, number: e.target.value })}
-                      style={{ width: "100%", padding: "6px 10px", borderRadius: 6, border: "1px solid #D1D5DB", fontSize: 12 }}
+                      style={{ width: "100%", padding: "6px 10px", borderRadius: 6, border: "1px solid #CBD5E1", fontSize: 12 }}
                     />
                   </div>
                   <div style={{ display: "flex", gap: 10 }}>
                     <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block" }}>Expiry (MM/YY)</label>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: "#334155", display: "block" }}>Expiry (MM/YY)</label>
                       <input
                         type="text"
                         placeholder="08/28"
                         value={cardDetails.expiry}
                         onChange={(e) => setCardDetails({ ...cardDetails, expiry: e.target.value })}
-                        style={{ width: "100%", padding: "6px 10px", borderRadius: 6, border: "1px solid #D1D5DB", fontSize: 12 }}
+                        style={{ width: "100%", padding: "6px 10px", borderRadius: 6, border: "1px solid #CBD5E1", fontSize: 12 }}
                       />
                     </div>
                     <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block" }}>CVV</label>
+                      <label style={{ fontSize: 11, fontWeight: 700, color: "#334155", display: "block" }}>CVV</label>
                       <input
                         type="password"
                         maxLength="4"
                         placeholder="•••"
                         value={cardDetails.cvv}
                         onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value })}
-                        style={{ width: "100%", padding: "6px 10px", borderRadius: 6, border: "1px solid #D1D5DB", fontSize: 12 }}
+                        style={{ width: "100%", padding: "6px 10px", borderRadius: 6, border: "1px solid #CBD5E1", fontSize: 12 }}
                       />
                     </div>
                   </div>
@@ -1504,12 +1504,12 @@ export default function BookingModule({ role = "student" }) {
 
               {/* NET BANKING Tab View */}
               {payMethod === "NET_BANKING" && (
-                <div style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: "#374151", display: "block", marginBottom: 4 }}>Select Bank</label>
+                <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 10, padding: 12, marginBottom: 16 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: "#334155", display: "block", marginBottom: 4 }}>Select Bank</label>
                   <select
                     value={selectedBank}
                     onChange={(e) => setSelectedBank(e.target.value)}
-                    style={{ width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #D1D5DB", fontSize: 12 }}
+                    style={{ width: "100%", padding: "8px", borderRadius: 6, border: "1px solid #CBD5E1", fontSize: 12 }}
                   >
                     <option value="State Bank of India">State Bank of India (SBI)</option>
                     <option value="HDFC Bank">HDFC Bank</option>
@@ -1522,7 +1522,7 @@ export default function BookingModule({ role = "student" }) {
 
               {/* WALLET Tab View */}
               {payMethod === "WALLET" && (
-                <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12, color: "#166534" }}>
+                <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: 12, marginBottom: 16, fontSize: 12, color: "#15803D" }}>
                   💳 <strong>CEMS Student Campus Wallet</strong>
                   <div style={{ marginTop: 4 }}>Available Balance: <strong>₹25,000.00</strong></div>
                 </div>
@@ -1605,7 +1605,7 @@ export default function BookingModule({ role = "student" }) {
             {/* Receipt Header */}
             <div
               style={{
-                background: `linear-gradient(135deg, #166534, #15803D)`,
+                background: `linear-gradient(135deg, #15803D, #15803D)`,
                 color: "#FFF",
                 padding: "16px 20px",
                 textAlign: "center",
@@ -1657,7 +1657,7 @@ export default function BookingModule({ role = "student" }) {
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ color: "#6B7280" }}>Payment Channel:</span>
-                  <strong style={{ color: "#166534" }}>{selectedBookingForReceipt.paymentMethod || "UPI"} Payment</strong>
+                  <strong style={{ color: "#15803D" }}>{selectedBookingForReceipt.paymentMethod || "UPI"} Payment</strong>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between" }}>
                   <span style={{ color: "#6B7280" }}>Payment Date:</span>
@@ -1666,7 +1666,7 @@ export default function BookingModule({ role = "student" }) {
 
                 <div
                   style={{
-                    borderTop: "1px dashed #86EFAC",
+                    borderTop: "1px dashed #BBF7D0",
                     paddingTop: 8,
                     marginTop: 4,
                     display: "flex",
@@ -1675,7 +1675,7 @@ export default function BookingModule({ role = "student" }) {
                   }}
                 >
                   <span style={{ fontSize: 13, fontWeight: 700, color: "#15803D" }}>Total Amount Paid:</span>
-                  <span style={{ fontSize: 18, fontWeight: 900, color: "#166534" }}>
+                  <span style={{ fontSize: 18, fontWeight: 900, color: "#15803D" }}>
                     ₹{(selectedBookingForReceipt.amount || getBookingFee(selectedBookingForReceipt.venue, selectedBookingForReceipt.roomType)).toLocaleString()}
                   </span>
                 </div>
@@ -1710,7 +1710,7 @@ export default function BookingModule({ role = "student" }) {
                     fontSize: 12,
                     padding: "8px",
                     borderRadius: 6,
-                    background: "#166534",
+                    background: "#15803D",
                   }}
                 >
                   Close Receipt

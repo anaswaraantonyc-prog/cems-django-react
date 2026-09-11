@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Card, Field, Stamp, Toast } from "../components/Shared";
-import { buttonStyle, inputStyle, navyBlue, slate, royalBlue, green, red } from "../theme";
+import { buttonStyle, inputStyle, navyBlue, royalBlue } from "../theme";
 
 export default function LostFoundModule({ role = "student" }) {
   const [items, setItems] = useState([]);
@@ -71,10 +71,13 @@ export default function LostFoundModule({ role = "student" }) {
         setFormTitle(""); setFormDesc(""); setFormLoc(""); setFormImage(null); setFormVideo(null);
         fetchItems();
       } else {
-        setToastMessage("Error reporting item.");
+        const errorData = await res.text();
+        setToastMessage("Error: " + errorData.substring(0, 100));
+        console.error("Submit Error:", errorData);
       }
-    } catch {
-      setToastMessage("Server error.");
+    } catch(err) {
+      setToastMessage("Server error: " + err.message);
+      console.error(err);
     } finally {
       setIsSubmitting(false);
     }
@@ -162,7 +165,11 @@ export default function LostFoundModule({ role = "student" }) {
           <form onSubmit={handleCreateSubmit}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <Field label="Status">
-                <select style={inputStyle} value={formStatus} onChange={e => setFormStatus(e.target.value)}>
+                <select style={inputStyle} value={formStatus} onChange={e => {
+                  setFormStatus(e.target.value);
+                  setFormImage(null);
+                  setFormVideo(null);
+                }}>
                   <option value="LOST">I Lost Something</option>
                   <option value="FOUND">I Found Something</option>
                 </select>
@@ -189,14 +196,16 @@ export default function LostFoundModule({ role = "student" }) {
               <input style={inputStyle} placeholder="e.g. Near Library, Main Gate" value={formLoc} onChange={e => setFormLoc(e.target.value)} />
             </Field>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-              <Field label="Upload Image (Optional)">
-                <input type="file" accept="image/*" onChange={e => setFormImage(e.target.files[0])} style={{ fontSize: 13 }} />
-              </Field>
-              <Field label="Upload Video (Optional)">
-                <input type="file" accept="video/*" onChange={e => setFormVideo(e.target.files[0])} style={{ fontSize: 13 }} />
-              </Field>
-            </div>
+            {formStatus === "FOUND" && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+                <Field label="Upload Image (Optional)">
+                  <input type="file" accept="image/*" onChange={e => setFormImage(e.target.files[0])} style={{ fontSize: 13 }} />
+                </Field>
+                <Field label="Upload Video (Optional)">
+                  <input type="file" accept="video/*" onChange={e => setFormVideo(e.target.files[0])} style={{ fontSize: 13 }} />
+                </Field>
+              </div>
+            )}
 
             <button type="submit" disabled={isSubmitting} style={{ ...buttonStyle("primary"), width: "100%" }}>
               {isSubmitting ? "Submitting..." : "Submit Report"}

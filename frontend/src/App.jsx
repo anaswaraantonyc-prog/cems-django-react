@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   maroon, maroonDark, maroonSoft, maroonMid,
   offWhite, gold, goldLight, brownLight,
@@ -21,6 +21,7 @@ import RegistrationModule from "./modules/RegistrationModule";
 import CanteenModule   from "./modules/CanteenModule";
 import WardenModule    from "./modules/WardenModule";
 import LostFoundModule from "./modules/LostFoundModule";
+import { Toast } from "./components/Shared";
 
 /* ── SVG Icons for sidebar modules ─────────────────────── */
 const ModuleIcon = ({ name, active }) => {
@@ -175,18 +176,16 @@ export default function App() {
   const [role, setRole]               = useState("student");
   const [activeModule, setActiveModule] = useState("booking");
 
-  const modules = modulesByRole[role] || modulesByRole["student"];
-  const current = modules.includes(activeModule) ? activeModule : modules[0];
-
-  const selectRole = (r) => {
-    setRole(r);
-    if (r === "canteen") setUserName("Neethu");
-    setActiveModule(modulesByRole[r]?.[0] || "booking");
-  };
+  // Global Broadcast State
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [lastSeenLostId, setLastSeenLostId] = useState(null);
 
   /* ── after successful login: decode JWT role ── */
   const handleLoggedIn = (data, isEmergency = false) => {
     const token = data.access || localStorage.getItem("cems_access") || "";
+    if (data.access) {
+      localStorage.setItem("cems_access", data.access);
+    }
     setAccessToken(token);
     try {
       const payload = JSON.parse(atob(token.split(".")[1]));
@@ -204,7 +203,7 @@ export default function App() {
       if (isEmergency) {
         setActiveModule("medical");
       } else {
-        setActiveModule(modulesByRole[resolvedRole][0]);
+        setActiveModule(modulesByRole[resolvedRole]?.[0] || "booking");
       }
     } catch {
       setRole("student");
@@ -216,6 +215,66 @@ export default function App() {
       }
     }
     setView("dashboard");
+  };
+
+  // Restore session on reload
+  useEffect(() => {
+    const token = localStorage.getItem("cems_access");
+    if (token) {
+      handleLoggedIn({ access: token });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Poll for newly reported missing items
+  useEffect(() => {
+    if (view !== "dashboard" || !accessToken) return;
+    
+    const checkLostItems = async () => {
+      try {
+        const res = await fetch("http://localhost:8000/api/lostfound/items/?item_status=LOST", {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const items = Array.isArray(data) ? data : (data.results || []);
+          if (items.length > 0) {
+            const maxId = Math.max(...items.map(i => i.id));
+            if (lastSeenLostId !== null && maxId > lastSeenLostId) {
+              const newItem = items.find(i => i.id === maxId);
+              // Show popup if the item wasn't reported by the current user
+              if (newItem && newItem.reported_by !== userName) {
+                setBroadcastMessage(`🚨 MISSING ITEM: ${newItem.title} - ${newItem.description.substring(0, 50)}...`);
+              }
+            }
+            if (lastSeenLostId === null || maxId > lastSeenLostId) {
+               setLastSeenLostId(maxId);
+            }
+          }
+        }
+      } catch (e) {}
+    };
+
+    const interval = setInterval(checkLostItems, 10000); // Check every 10 seconds
+    if (lastSeenLostId === null) checkLostItems();
+
+    return () => clearInterval(interval);
+  }, [view, accessToken, lastSeenLostId, userName]);
+
+  const modules = modulesByRole[role] || modulesByRole["student"];
+  const current = modules.includes(activeModule) ? activeModule : modules[0];
+
+  const selectRole = (r) => {
+    setRole(r);
+    if (r === "canteen") setUserName("Neethu");
+    setActiveModule(modulesByRole[r]?.[0] || "booking");
+  };
+
+  /* ── Sign out handler ── */
+  const handleSignOut = () => {
+    localStorage.removeItem("cems_access");
+    setAccessToken("");
+    setView("login");
   };
 
   /* ══════════════════════════════════════════
@@ -244,6 +303,7 @@ export default function App() {
       minHeight: "100vh", display: "flex", flexDirection: "column",
       background: "#F8FAFC",
     }}>
+      <Toast message={broadcastMessage} type="warning" visible={!!broadcastMessage} onClose={() => setBroadcastMessage("")} />
 
       {/* ── top navbar ── */}
       <header style={{
@@ -313,7 +373,7 @@ export default function App() {
             </select>
           </div>
 
-          <button onClick={() => setView("login")}
+          <button onClick={handleSignOut}
             style={{
               background: "rgba(255,255,255,0.08)",
               border: "1px solid rgba(255,255,255,0.15)",

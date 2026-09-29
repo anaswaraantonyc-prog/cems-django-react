@@ -46,7 +46,7 @@ function authHeader() {
 export default function ComplaintModule({ role = "student" }) {
   const isPrincipal = role === "principal" || role === "admin";
 
-  const [complaints, setComplaints] = useState(INITIAL_COMPLAINTS);
+  const [complaints, setComplaints] = useState([]);
   const [subject, setSubject] = useState("");
   const [text, setText] = useState("");
   const [priority, setPriority] = useState("Medium");
@@ -70,24 +70,22 @@ export default function ComplaintModule({ role = "student" }) {
       if (res.ok) {
         const data = await res.json();
         const results = Array.isArray(data) ? data : data.results || [];
-        if (results.length > 0) {
-          const mapped = results.map((c) => {
-            const rawP = (c.priority || "MEDIUM").toUpperCase();
-            const p = rawP === "HIGH" ? "High" : rawP === "LOW" ? "Low" : "Medium";
-            return {
-              id: c.id,
-              sender: c.is_anonymous ? "Anonymous User" : (c.submitted_by || "Student"),
-              subject: c.subject || "Grievance Record",
-              text: c.description || c.subject,
-              priority: p,
-              ts: c.submitted_at ? new Date(c.submitted_at).toLocaleString() : "Recently",
-              reply: c.principal_reply || null,
-              repliedAt: c.replied_at ? new Date(c.replied_at).toLocaleString() : null,
-              status: c.principal_reply ? "Resolved & Replied" : (c.status || "Pending Principal Review"),
-            };
-          });
-          setComplaints(mapped);
-        }
+        const mapped = results.map((c) => {
+          const rawP = (c.priority || "MEDIUM").toUpperCase();
+          const p = rawP === "HIGH" ? "High" : rawP === "LOW" ? "Low" : "Medium";
+          return {
+            id: c.id,
+            sender: c.is_anonymous ? "Anonymous User" : (c.submitted_by || "Student"),
+            subject: c.subject || "Grievance Record",
+            text: c.description || c.subject,
+            priority: p,
+            ts: c.submitted_at ? new Date(c.submitted_at).toLocaleString() : "Recently",
+            reply: c.principal_reply || null,
+            repliedAt: c.replied_at ? new Date(c.replied_at).toLocaleString() : null,
+            status: c.status === "OPEN" ? "Pending Principal Review" : c.status,
+          };
+        });
+        setComplaints(mapped);
       }
     } catch {
       // Fallback sample data remains intact
@@ -149,7 +147,7 @@ export default function ComplaintModule({ role = "student" }) {
   };
 
   // Submit Principal Reply
-  const submitReply = async (id) => {
+  const submitReply = async (id, statusAction) => {
     if (!replyText.trim()) return;
     const now = new Date().toLocaleString();
 
@@ -161,7 +159,7 @@ export default function ComplaintModule({ role = "student" }) {
               ...c,
               reply: replyText.trim(),
               repliedAt: now,
-              status: "Resolved & Replied",
+              status: statusAction,
             }
           : c
       )
@@ -179,7 +177,7 @@ export default function ComplaintModule({ role = "student" }) {
           },
           body: JSON.stringify({
             reply: replyText.trim(),
-            status: "RESOLVED",
+            status: statusAction,
           }),
         });
         fetchComplaints();
@@ -190,7 +188,7 @@ export default function ComplaintModule({ role = "student" }) {
 
     setReplyingId(null);
     setReplyText("");
-    setNotice("✅ Reply sent to user! Official Principal response attached to grievance record.");
+    setNotice(`✅ Grievance marked as ${statusAction} and reply sent to user!`);
     setTimeout(() => setNotice(""), 5000);
   };
 
@@ -316,8 +314,8 @@ export default function ComplaintModule({ role = "student" }) {
 
             <span style={{
               fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 12,
-              background: c.reply ? "#D1FAE5" : "#EFF6FF",
-              color: c.reply ? "#047857" : "#1E40AF"
+              background: c.status === "ACCEPTED" ? "#D1FAE5" : c.status === "REJECTED" ? "#FEE2E2" : "#EFF6FF",
+              color: c.status === "ACCEPTED" ? "#047857" : c.status === "REJECTED" ? "#B91C1C" : "#1E40AF"
             }}>
               {c.status}
             </span>
@@ -367,10 +365,17 @@ export default function ComplaintModule({ role = "student" }) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => submitReply(c.id)}
-                      style={{ ...buttonStyle("primary"), fontSize: 12, padding: "6px 14px" }}
+                      onClick={() => submitReply(c.id, "REJECTED")}
+                      style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: brick, color: "#FFF", fontSize: 12, cursor: "pointer", fontWeight: 700 }}
                     >
-                      ✉️ Send Official Reply
+                      ❌ Reject
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => submitReply(c.id, "ACCEPTED")}
+                      style={{ padding: "6px 14px", borderRadius: 6, border: "none", background: "#059669", color: "#FFF", fontSize: 12, cursor: "pointer", fontWeight: 700 }}
+                    >
+                      ✅ Accept
                     </button>
                   </div>
                 </div>

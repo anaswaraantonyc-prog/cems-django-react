@@ -1,23 +1,23 @@
 /* ===========================================================
-   CEMS THEME - Navy Blue & Pure White High-Contrast System
+   CEMS THEME - Purple & Lavender System
    Modern SaaS Redesign
    =========================================================== */
 
-/* --- Navy Blue Palette --- */
-export const navyBlue      = "#0A192F";   // Deep Classic Navy Blue
-export const navyBlueDark  = "#0B132B";   // Midnight Navy
-export const navyBlueSoft  = "#1C2541";   // Slate Navy Blue
-export const navyBlueMid   = "#3A506B";   // Mid Navy
+/* --- Purple Palette (Mapped to legacy navyBlue variables) --- */
+export const navyBlue      = "#4C1D95";   // Deep Violet (Purple 900)
+export const navyBlueDark  = "#2E1065";   // Midnight Purple (Purple 950)
+export const navyBlueSoft  = "#6D28D9";   // Soft Deep Purple (Purple 700)
+export const navyBlueMid   = "#5B21B6";   // Mid Purple (Purple 800)
 
 /* --- Pure White Palette --- */
 export const pureWhite     = "#FFFFFF";   // Pure Crisp White
 export const offWhite      = "#FFFFFF";   // Pure White Background / Canvas
-export const offWhiteDim   = "#F8FAFC";   // Light Pure White Surface
-export const cream         = "#F1F5F9";   // Ice White Accent
+export const offWhiteDim   = "#F5F3FF";   // Light Lavender Tint (Purple 50)
+export const cream         = "#EDE9FE";   // Lavender Accent (Purple 100)
 
-/* --- Royal/Navy Accents --- */
-export const royalBlue     = "#1D4ED8";   // Rich Navy Royal Accent
-export const royalBlueDark = "#1E40AF";   // Deep Navy Accent
+/* --- Lavender/Purple Accents (Mapped to legacy royalBlue variables) --- */
+export const royalBlue     = "#8B5CF6";   // Lavender / Vibrant Purple (Purple 500)
+export const royalBlueDark = "#7C3AED";   // Deep Lavender (Purple 600)
 
 /* --- Emergency --- */
 export const emergencyRed  = "#DC2626";   // Vibrant Emergency Red
@@ -28,16 +28,16 @@ export const darkBlueNavy  = navyBlueDark;
 export const darkBlueSoft  = navyBlueSoft;
 export const darkBlueMid   = navyBlueMid;
 
-export const maroon        = royalBlue;     // Swapped to Royal Blue
-export const maroonDark    = navyBlue;      // Swapped to Navy Blue
-export const maroonSoft    = "#3B82F6";     // Light Royal Blue
+export const maroon        = royalBlue;     // Swapped to Purple
+export const maroonDark    = navyBlue;      // Swapped to Deep Purple
+export const maroonSoft    = "#A78BFA";     // Light Lavender (Purple 400)
 export const maroonMid     = royalBlueDark;
 
 export const brownDark     = navyBlue;
 export const brownMedium   = navyBlueSoft;
 export const brownSoft     = navyBlueMid;
-export const brownLight    = "#64748B";     // Slate-500
-export const brownBorder   = "#E2E8F0";     // Slate-200
+export const brownLight    = "#A78BFA";     // Lavender
+export const brownBorder   = "#DDD6FE";     // Purple 200
 
 export const ink           = navyBlue;
 export const inkSoft       = navyBlueDark;

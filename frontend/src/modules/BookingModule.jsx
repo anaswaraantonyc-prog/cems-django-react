@@ -2,11 +2,20 @@ import { useState, useEffect } from "react";
 import { Card, Label, Field, Stamp } from "../components/Shared";
 import { inputStyle, buttonStyle, sage, brick, maroonDark, gold } from "../theme";
 
-const getBookingFee = (venueName, roomTypeVal, foodAmountVal) => {
+const getBookingFee = (venueName, roomTypeVal, acTypeVal, foodAmountVal, hostelFoodAmount = 0, hostelDays = 1) => {
   if (!venueName) return 1000;
   const v = venueName.toLowerCase();
   if (v.includes("auditorium")) return 15000;
-  if (v.includes("hostel")) return roomTypeVal === "AC" ? 3500 : 2000;
+  if (v.includes("hostel")) {
+    let roomCost = 400; // default (Dormitory)
+    if (roomTypeVal.includes("Single")) roomCost = 1500;
+    if (roomTypeVal.includes("2 Share")) roomCost = 1000;
+    if (roomTypeVal.includes("3 Share")) roomCost = 800;
+    
+    if (acTypeVal === "AC") roomCost += 500;
+    
+    return (roomCost * hostelDays) + hostelFoodAmount;
+  }
   if (v.includes("canteen") || v.includes("food")) return foodAmountVal || 6950;
   return 2000;
 };
@@ -117,10 +126,36 @@ const INITIAL_BOOKING_HISTORY = [
 ];
 
 const FOOD_MENU = [
-  { id: "tea", name: "Tea", icon: "☕", price: 15 },
-  { id: "coffee", name: "Coffee", icon: "☕", price: 25 },
-  { id: "juice", name: "Juice", icon: "🧃", price: 40 },
-  { id: "snacks", name: "Snacks", icon: "🥐", price: 30 }
+  // Tea Options
+  { id: "tea_normal", name: "Normal Tea", icon: "☕", price: 15, category: "Tea & Coffee" },
+  { id: "tea_no_sugar", name: "Tea (No Sugar)", icon: "☕", price: 15, category: "Tea & Coffee" },
+  { id: "tea_black", name: "Black Tea", icon: "☕", price: 10, category: "Tea & Coffee" },
+  // Coffee Options
+  { id: "coffee_normal", name: "Normal Coffee", icon: "☕", price: 25, category: "Tea & Coffee" },
+  { id: "coffee_black", name: "Black Coffee", icon: "☕", price: 20, category: "Tea & Coffee" },
+  { id: "coffee_bru", name: "Bru Coffee", icon: "☕", price: 30, category: "Tea & Coffee" },
+  // Juice Options
+  { id: "juice_apple", name: "Apple Juice", icon: "🧃", price: 40, category: "Fresh Juices" },
+  { id: "juice_orange", name: "Orange Juice", icon: "🧃", price: 40, category: "Fresh Juices" },
+  { id: "juice_mango", name: "Mango Juice", icon: "🧃", price: 50, category: "Fresh Juices" },
+  { id: "juice_mixed", name: "Mixed Fruit", icon: "🧃", price: 50, category: "Fresh Juices" },
+  // Snacks
+  { id: "snack_banana_fritter", name: "Banana Fritters", icon: "🍌", price: 20, category: "Snacks" },
+  { id: "snack_burger", name: "Burger", icon: "🍔", price: 60, category: "Snacks" },
+  { id: "snack_sweet_bun", name: "Sweet Bun", icon: "🍞", price: 15, category: "Snacks" },
+  { id: "snack_sandwich", name: "Sandwich", icon: "🥪", price: 40, category: "Snacks" },
+  { id: "snack_samosa", name: "Samosa", icon: "🥟", price: 15, category: "Snacks" },
+  { id: "snack_chicken_roll", name: "Chicken Roll", icon: "🌯", price: 50, category: "Snacks" },
+  // Meals
+  { id: "lunch", name: "Lunch Meal", icon: "🍛", price: 80, category: "Meals" },
+  { id: "biriyani", name: "Biriyani", icon: "🍗", price: 120, category: "Meals" },
+  // Ice Creams
+  { id: "icecream_chocobar", name: "Chocobar", icon: "🍦", price: 30, category: "Ice Creams" },
+  { id: "icecream_mangobar", name: "Mangobar", icon: "🥭", price: 30, category: "Ice Creams" },
+  { id: "icecream_kulfi", name: "Kulfi", icon: "🍨", price: 20, category: "Ice Creams" },
+  { id: "icecream_cone", name: "Cone Icecream", icon: "🍦", price: 40, category: "Ice Creams" },
+  { id: "icecream_ball", name: "Ball Icecream", icon: "🍧", price: 25, category: "Ice Creams" },
+  { id: "icecream_sipup", name: "Sipup", icon: "🧊", price: 10, category: "Ice Creams" }
 ];
 
 export default function BookingModule({ role = "student" }) {
@@ -207,7 +242,10 @@ export default function BookingModule({ role = "student" }) {
   const [venue, setVenue] = useState(isStudent ? "Hostel" : "Auditorium");
   const [eventName, setEventName] = useState("");
   const [date, setDate] = useState("");
-  const [roomType, setRoomType] = useState("AC");
+  const [endDate, setEndDate] = useState("");
+  const [hostelDurationType, setHostelDurationType] = useState("single");
+  const [roomType, setRoomType] = useState("Single Room");
+  const [acType, setAcType] = useState("Non-AC");
   const [error, setError] = useState("");
   const [confirmed, setConfirmed] = useState(null);
 
@@ -219,12 +257,27 @@ export default function BookingModule({ role = "student" }) {
   const [formCardCvv, setFormCardCvv] = useState("");
   const [formBank, setFormBank] = useState("State Bank of India");
 
+  // Hostel Mess Food state (Per day)
+  const [hostelFoodByDay, setHostelFoodByDay] = useState({});
+
+  const getDays = (start, end) => {
+    if (!start || !end) return 1;
+    const s = new Date(start);
+    const e = new Date(end);
+    const diff = Math.ceil((e - s) / (1000 * 60 * 60 * 24));
+    return diff > 0 ? diff + 1 : 1; 
+  };
+
+  const currentHostelDays = venue === "Hostel" && hostelDurationType === "multiple" ? getDays(date, endDate) : 1;
+
   // Food Menu state
   const [foodQuantities, setFoodQuantities] = useState({
-    tea: 0,
-    coffee: 0,
-    juice: 0,
-    snacks: 0,
+    tea_normal: 0, tea_no_sugar: 0, tea_black: 0,
+    coffee_normal: 0, coffee_black: 0, coffee_bru: 0,
+    juice_apple: 0, juice_orange: 0, juice_mango: 0, juice_mixed: 0,
+    snack_banana_fritter: 0, snack_burger: 0, snack_sweet_bun: 0, snack_sandwich: 0, snack_samosa: 0, snack_chicken_roll: 0,
+    lunch: 0, biriyani: 0,
+    icecream_chocobar: 0, icecream_mangobar: 0, icecream_kulfi: 0, icecream_cone: 0, icecream_ball: 0, icecream_sipup: 0,
   });
 
   const handleFoodQtyChange = (id, deltaOrVal) => {
@@ -261,8 +314,8 @@ export default function BookingModule({ role = "student" }) {
   const submit = (e) => {
     e.preventDefault();
     setError("");
-    if (!eventName || !date) {
-      setError("Please fill in both the event/purpose title and date.");
+    if (!eventName || !date || (venue === "Hostel" && hostelDurationType === "multiple" && !endDate)) {
+      setError("Please fill in all required event titles and dates.");
       return;
     }
 
@@ -276,17 +329,47 @@ export default function BookingModule({ role = "student" }) {
       return;
     }
 
+    const hostelDays = currentHostelDays;
+
+    let hostelFoodCost = 0;
+    const messSelectionsByDay = [];
+    
+    for (let i = 0; i < hostelDays; i++) {
+      const dayFood = hostelFoodByDay[i] || { breakfast: false, lunch: false, teaSnacks: false, dinner: false };
+      const dayCost = 
+        (dayFood.breakfast ? 50 : 0) + 
+        (dayFood.lunch ? 80 : 0) + 
+        (dayFood.teaSnacks ? 30 : 0) + 
+        (dayFood.dinner ? 80 : 0);
+      hostelFoodCost += dayCost;
+
+      const daySelections = [
+        dayFood.breakfast && "Breakfast", 
+        dayFood.lunch && "Lunch", 
+        dayFood.teaSnacks && "4 PM Tea & Snacks", 
+        dayFood.dinner && "Dinner"
+      ].filter(Boolean);
+
+      if (daySelections.length > 0) {
+        messSelectionsByDay.push(`Day ${i + 1}: ${daySelections.join(", ")}`);
+      }
+    }
+
     let bookingDetails = "";
     if (venue === "Canteen / program food") {
       const orderedList = FOOD_MENU.filter((item) => (foodQuantities[item.id] || 0) > 0)
         .map((item) => `${item.icon} ${item.name}: ${foodQuantities[item.id]} × ₹${item.price} = ₹${foodQuantities[item.id] * item.price}`)
         .join(", ");
       bookingDetails = `Food Pre-Order Menu: ${orderedList} | Total Items: ${totalFoodQuantity} | Grand Total: ₹${totalFoodAmount}`;
+    } else if (venue === "Hostel") {
+      const messText = messSelectionsByDay.length > 0 ? ` | Mess Food: [${messSelectionsByDay.join(" | ")}]` : "";
+      const dateText = hostelDurationType === "multiple" ? `${date} to ${endDate} (${hostelDays} days)` : date;
+      bookingDetails = `Hostel booking requested for ${eventName} scheduled on ${dateText}. Room: ${roomType} (${acType})${messText}`;
     } else {
       bookingDetails = `${venue} booking requested for ${eventName} scheduled on ${date}.`;
     }
 
-    const calculatedFee = getBookingFee(venue, roomType, totalFoodAmount);
+    const calculatedFee = getBookingFee(venue, roomType, acType, totalFoodAmount, hostelFoodCost, hostelDays);
     const txnRef = `${formPayMethod}-2026-${Math.floor(100000 + Math.random() * 900000)}`;
     const paidTime = new Date().toLocaleString();
 
@@ -298,7 +381,7 @@ export default function BookingModule({ role = "student" }) {
       applicantRole: activeRole.toUpperCase(),
       date,
       status: "PENDING_APPROVAL",
-      roomType: venue === "Hostel" ? roomType : "N/A",
+      roomType: venue === "Hostel" ? `${roomType} (${acType})` : "N/A",
       amount: calculatedFee,
       paymentStatus: "PAID",
       paymentMethod: formPayMethod,
@@ -312,9 +395,19 @@ export default function BookingModule({ role = "student" }) {
     setConfirmed({ venue, eventName, date, roomType, bookedBy: activeRole, details: bookingDetails, totalFoodAmount, amount: calculatedFee, paymentMethod: formPayMethod, txnRef });
     setEventName("");
     setDate("");
+    setEndDate("");
+    setHostelDurationType("single");
     setFormUpiId("");
     setFormCardNum(""); setFormCardExpiry(""); setFormCardCvv("");
-    setFoodQuantities({ tea: 0, coffee: 0, juice: 0, snacks: 0 });
+    setHostelFoodByDay({});
+    setFoodQuantities({ 
+      tea_normal: 0, tea_no_sugar: 0, tea_black: 0,
+      coffee_normal: 0, coffee_black: 0, coffee_bru: 0,
+      juice_apple: 0, juice_orange: 0, juice_mango: 0, juice_mixed: 0,
+      snack_banana_fritter: 0, snack_burger: 0, snack_sweet_bun: 0, snack_sandwich: 0, snack_samosa: 0, snack_chicken_roll: 0,
+      lunch: 0, biriyani: 0,
+      icecream_chocobar: 0, icecream_mangobar: 0, icecream_kulfi: 0, icecream_cone: 0, icecream_ball: 0, icecream_sipup: 0
+    });
 
     // Try posting to backend API if authenticated
     const token = localStorage.getItem("cems_access");
@@ -580,12 +673,60 @@ export default function BookingModule({ role = "student" }) {
             </Field>
 
             {venue === "Hostel" && (
-              <Field label="Hostel Room Category">
-                <select style={inputStyle} value={roomType} onChange={(e) => setRoomType(e.target.value)}>
-                  <option value="AC">AC Room</option>
-                  <option value="Non-AC">Non-AC Room</option>
-                </select>
-              </Field>
+              <>
+                <Field label="Hostel Room Category">
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <select style={{ ...inputStyle, flex: 2 }} value={roomType} onChange={(e) => setRoomType(e.target.value)}>
+                      <option value="Single Room">Single Room</option>
+                      <option value="2 Share Room">2 Share Room</option>
+                      <option value="3 Share Room">3 Share Room</option>
+                      <option value="Dormitory">Dormitory</option>
+                    </select>
+                    <select style={{ ...inputStyle, flex: 1 }} value={acType} onChange={(e) => setAcType(e.target.value)}>
+                      <option value="Non-AC">Non-AC</option>
+                      <option value="AC">AC</option>
+                    </select>
+                  </div>
+                </Field>
+                <Field label="Hostel Mess Food Options (Optional, Select per day)">
+                  {Array.from({ length: currentHostelDays }).map((_, i) => {
+                    const dayFood = hostelFoodByDay[i] || { breakfast: false, lunch: false, teaSnacks: false, dinner: false };
+                    
+                    let dateLabel = "";
+                    if (date) {
+                      const d = new Date(date);
+                      d.setDate(d.getDate() + i);
+                      dateLabel = ` - ${d.toLocaleDateString('en-GB')}`;
+                    }
+
+                    return (
+                      <div key={i} style={{ marginBottom: 12, background: "#F8FAFC", padding: 12, borderRadius: 8, border: "1px solid #E2E8F0" }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 8, color: maroonDark }}>
+                          Day {i + 1}{dateLabel}
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 14 }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                            <input type="checkbox" checked={dayFood.breakfast} onChange={(e) => setHostelFoodByDay({ ...hostelFoodByDay, [i]: { ...dayFood, breakfast: e.target.checked } })} />
+                            Breakfast (₹50)
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                            <input type="checkbox" checked={dayFood.lunch} onChange={(e) => setHostelFoodByDay({ ...hostelFoodByDay, [i]: { ...dayFood, lunch: e.target.checked } })} />
+                            Lunch (₹80)
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                            <input type="checkbox" checked={dayFood.teaSnacks} onChange={(e) => setHostelFoodByDay({ ...hostelFoodByDay, [i]: { ...dayFood, teaSnacks: e.target.checked } })} />
+                            Tea & Snacks (₹30)
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                            <input type="checkbox" checked={dayFood.dinner} onChange={(e) => setHostelFoodByDay({ ...hostelFoodByDay, [i]: { ...dayFood, dinner: e.target.checked } })} />
+                            Dinner (₹80)
+                          </label>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </Field>
+              </>
             )}
 
             {venue === "Canteen / program food" && (
@@ -605,101 +746,62 @@ export default function BookingModule({ role = "student" }) {
                   </span>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 12 }}>
-                  {FOOD_MENU.map((item) => {
-                    const qty = foodQuantities[item.id] || 0;
-                    const subtotal = qty * item.price;
-                    return (
-                      <div
-                        key={item.id}
-                        style={{
-                          background: "#FFFFFF",
-                          border: `1.5px solid ${qty > 0 ? maroonDark : "#E2E8F0"}`,
-                          borderRadius: 8,
-                          padding: 12,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: 8,
-                          boxShadow: qty > 0 ? "0 2px 8px rgba(107,30,43,0.15)" : "none",
-                          transition: "all 0.15s ease",
-                        }}
-                      >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                          <span style={{ fontWeight: 700, fontSize: 14, color: maroonDark }}>
-                            {item.icon} {item.name}
-                          </span>
-                          <span style={{ fontSize: 11, fontWeight: 700, color: "#475569", background: "#F3F4F6", padding: "2px 6px", borderRadius: 4 }}>
-                            ₹{item.price} / item
-                          </span>
-                        </div>
-
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginTop: 4 }}>
-                          <button
-                            type="button"
-                            onClick={() => handleFoodQtyChange(item.id, -1)}
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: 6,
-                              border: "1px solid #CBD5E1",
-                              background: "#F8FAFC",
-                              color: maroonDark,
-                              fontWeight: 800,
-                              fontSize: 16,
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            -
-                          </button>
-
-                          <input
-                            type="number"
-                            min="0"
-                            value={qty}
-                            onChange={(e) => handleFoodQtyChange(item.id, parseInt(e.target.value) || 0)}
-                            style={{
-                              width: 55,
-                              textAlign: "center",
-                              padding: "4px",
-                              borderRadius: 6,
-                              border: `1px solid ${qty > 0 ? maroonDark : "#CBD5E1"}`,
-                              fontSize: 14,
-                              fontWeight: 700,
-                              color: maroonDark,
-                            }}
-                          />
-
-                          <button
-                            type="button"
-                            onClick={() => handleFoodQtyChange(item.id, 1)}
-                            style={{
-                              width: 32,
-                              height: 32,
-                              borderRadius: 6,
-                              border: "none",
-                              background: maroonDark,
-                              color: "#FFF",
-                              fontWeight: 800,
-                              fontSize: 16,
-                              cursor: "pointer",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                            }}
-                          >
-                            +
-                          </button>
-                        </div>
-
-                        <div style={{ fontSize: 12, textAlign: "right", fontWeight: 700, color: qty > 0 ? "#15803D" : "#64748B" }}>
-                          Subtotal: ₹{subtotal}
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div style={{ overflowX: "auto", background: "#FFF", borderRadius: 8, border: "1px solid #E2E8F0" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+                    <thead>
+                      <tr style={{ background: "#F3F4F6", borderBottom: "2px solid #CBD5E1", textAlign: "left" }}>
+                        <th style={{ padding: "10px 14px", color: maroonDark }}>Item Name</th>
+                        <th style={{ padding: "10px 14px", color: maroonDark }}>Unit Price</th>
+                        <th style={{ padding: "10px 14px", color: maroonDark, textAlign: "center" }}>Quantity</th>
+                        <th style={{ padding: "10px 14px", color: maroonDark, textAlign: "right" }}>Subtotal</th>
+                      </tr>
+                    </thead>
+                    {["Tea & Coffee", "Fresh Juices", "Snacks", "Meals", "Ice Creams"].map(category => (
+                      <tbody key={category}>
+                        <tr>
+                          <td colSpan="4" style={{ background: "#F1F5F9", padding: "8px 14px", fontWeight: 800, color: maroonDark, fontSize: 13, borderBottom: "1px solid #CBD5E1", borderTop: "1px solid #CBD5E1", textTransform: "uppercase", letterSpacing: 1 }}>
+                            {category}
+                          </td>
+                        </tr>
+                        {FOOD_MENU.filter(item => item.category === category).map((item) => {
+                          const qty = foodQuantities[item.id] || 0;
+                          const subtotal = qty * item.price;
+                          return (
+                            <tr key={item.id} style={{ borderBottom: "1px solid #E2E8F0", background: qty > 0 ? "#F8FAFC" : "#FFF" }}>
+                              <td style={{ padding: "10px 14px", fontWeight: 600, color: "#334155" }}>
+                                {item.icon} {item.name}
+                              </td>
+                              <td style={{ padding: "10px 14px", color: "#64748B", fontWeight: 600 }}>
+                                ₹{item.price}
+                              </td>
+                              <td style={{ padding: "10px 14px" }}>
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleFoodQtyChange(item.id, -1)}
+                                    style={{ width: 28, height: 28, borderRadius: 4, border: "1px solid #CBD5E1", background: "#FFF", color: maroonDark, fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                  >-</button>
+                                  <input
+                                    type="number" min="0" value={qty}
+                                    onChange={(e) => handleFoodQtyChange(item.id, parseInt(e.target.value) || 0)}
+                                    style={{ width: 45, textAlign: "center", padding: "4px", borderRadius: 4, border: `1px solid ${qty > 0 ? maroonDark : "#CBD5E1"}`, fontSize: 13, fontWeight: 700, color: maroonDark }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleFoodQtyChange(item.id, 1)}
+                                    style={{ width: 28, height: 28, borderRadius: 4, border: "none", background: maroonDark, color: "#FFF", fontWeight: 800, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                                  >+</button>
+                                </div>
+                              </td>
+                              <td style={{ padding: "10px 14px", textAlign: "right", fontWeight: 700, color: qty > 0 ? "#15803D" : "#94A3B8" }}>
+                                ₹{subtotal}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    ))}
+                  </table>
                 </div>
 
                 {/* Grand Summary Bar */}
@@ -726,9 +828,38 @@ export default function BookingModule({ role = "student" }) {
               </div>
             )}
 
-            <Field label="Scheduled Event Date">
-              <input style={inputStyle} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-            </Field>
+            {venue === "Hostel" ? (
+              <Field label="Hostel Allocation Duration">
+                <div style={{ display: "flex", gap: 12, marginBottom: 10 }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                    <input type="radio" name="hostelDuration" checked={hostelDurationType === "single"} onChange={() => setHostelDurationType("single")} />
+                    Single Day
+                  </label>
+                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, cursor: "pointer" }}>
+                    <input type="radio" name="hostelDuration" checked={hostelDurationType === "multiple"} onChange={() => setHostelDurationType("multiple")} />
+                    Multiple Days
+                  </label>
+                </div>
+                {hostelDurationType === "single" ? (
+                  <input style={inputStyle} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                ) : (
+                  <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>Check-in Date</div>
+                      <input style={inputStyle} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 12, color: "#64748B", marginBottom: 4 }}>Check-out Date</div>
+                      <input style={inputStyle} type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+                    </div>
+                  </div>
+                )}
+              </Field>
+            ) : (
+              <Field label="Scheduled Event Date">
+                <input style={inputStyle} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+              </Field>
+            )}
 
             {/* ── Payment Method Section ── */}
             <div style={{
@@ -964,7 +1095,8 @@ export default function BookingModule({ role = "student" }) {
       )}
 
       {/* ── Auditorium Pending Requests Section ── */}
-      <Card style={{ padding: 20 }}>
+      {!isStudent && (
+        <Card style={{ padding: 20 }}>
         {/* Header info bar */}
         <div style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -1206,6 +1338,7 @@ export default function BookingModule({ role = "student" }) {
           </div>
         )}
       </Card>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════
           PAYMENT GATEWAY MODAL (UPI, Cards, Net Banking, Wallet)

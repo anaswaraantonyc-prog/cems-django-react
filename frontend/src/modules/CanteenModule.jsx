@@ -2,10 +2,36 @@ import { useState } from "react";
 import { maroonDark, gold, sage, brick } from "../theme";
 
 const FOOD_MENU = [
-  { id: "tea",    name: "Tea",    icon: "☕", price: 15 },
-  { id: "coffee", name: "Coffee", icon: "☕", price: 25 },
-  { id: "juice",  name: "Juice",  icon: "🧃", price: 40 },
-  { id: "snacks", name: "Snacks", icon: "🥐", price: 30 },
+  // Tea Options
+  { id: "tea_normal", name: "Normal Tea", icon: "☕", price: 15 },
+  { id: "tea_no_sugar", name: "Tea (No Sugar)", icon: "☕", price: 15 },
+  { id: "tea_black", name: "Black Tea", icon: "☕", price: 10 },
+  // Coffee Options
+  { id: "coffee_normal", name: "Normal Coffee", icon: "☕", price: 25 },
+  { id: "coffee_black", name: "Black Coffee", icon: "☕", price: 20 },
+  { id: "coffee_bru", name: "Bru Coffee", icon: "☕", price: 30 },
+  // Juice Options
+  { id: "juice_apple", name: "Apple Juice", icon: "🧃", price: 40 },
+  { id: "juice_orange", name: "Orange Juice", icon: "🧃", price: 40 },
+  { id: "juice_mango", name: "Mango Juice", icon: "🧃", price: 50 },
+  { id: "juice_mixed", name: "Mixed Fruit", icon: "🧃", price: 50 },
+  // Snacks
+  { id: "snack_banana_fritter", name: "Banana Fritters", icon: "🍌", price: 20 },
+  { id: "snack_burger", name: "Burger", icon: "🍔", price: 60 },
+  { id: "snack_sweet_bun", name: "Sweet Bun", icon: "🍞", price: 15 },
+  { id: "snack_sandwich", name: "Sandwich", icon: "🥪", price: 40 },
+  { id: "snack_samosa", name: "Samosa", icon: "🥟", price: 15 },
+  { id: "snack_chicken_roll", name: "Chicken Roll", icon: "🌯", price: 50 },
+  // Meals
+  { id: "lunch", name: "Lunch Meal", icon: "🍛", price: 80 },
+  { id: "biriyani", name: "Biriyani", icon: "🍗", price: 120 },
+  // Ice Creams
+  { id: "icecream_chocobar", name: "Chocobar", icon: "🍦", price: 30 },
+  { id: "icecream_mangobar", name: "Mangobar", icon: "🥭", price: 30 },
+  { id: "icecream_kulfi", name: "Kulfi", icon: "🍨", price: 20 },
+  { id: "icecream_cone", name: "Cone Icecream", icon: "🍦", price: 40 },
+  { id: "icecream_ball", name: "Ball Icecream", icon: "🍧", price: 25 },
+  { id: "icecream_sipup", name: "Sipup", icon: "🧊", price: 10 }
 ];
 
 const INITIAL_CANTEEN_ORDERS = [
@@ -19,7 +45,7 @@ const INITIAL_CANTEEN_ORDERS = [
     paymentStatus: "PAID",
     paymentMethod: "UPI",
     paymentTxnId: "UPI-2026-871299",
-    items: { tea: 100, coffee: 50, juice: 30, snacks: 100 },
+    items: { tea_normal: 100, coffee_normal: 50, juice_mixed: 30, snack_samosa: 100 },
     amount: 6950,
     submittedAt: "2026-08-15",
     rejectionReason: "",
@@ -34,7 +60,7 @@ const INITIAL_CANTEEN_ORDERS = [
     paymentStatus: "REFUNDED",
     paymentMethod: "UPI",
     paymentTxnId: "UPI-2026-852144",
-    items: { tea: 150, coffee: 0, juice: 50, snacks: 150 },
+    items: { tea_no_sugar: 150, juice_orange: 50, snack_burger: 150 },
     amount: 8750,
     submittedAt: "2026-06-28",
     rejectionReason: "Event was cancelled by organizer.",
@@ -49,7 +75,7 @@ const INITIAL_CANTEEN_ORDERS = [
     paymentStatus: "PAID",
     paymentMethod: "CARD",
     paymentTxnId: "CARD-2026-901044",
-    items: { tea: 20, coffee: 15, juice: 0, snacks: 30 },
+    items: { tea_normal: 20, coffee_bru: 15, snack_banana_fritter: 30 },
     amount: 1525,
     submittedAt: "2026-09-07",
     rejectionReason: "",
@@ -64,7 +90,7 @@ const INITIAL_CANTEEN_ORDERS = [
     paymentStatus: "PAID",
     paymentMethod: "UPI",
     paymentTxnId: "UPI-2026-902188",
-    items: { tea: 200, coffee: 100, juice: 80, snacks: 200 },
+    items: { tea_normal: 200, coffee_normal: 100, juice_mango: 80, snack_sandwich: 200 },
     amount: 16700,
     submittedAt: "2026-09-08",
     rejectionReason: "",

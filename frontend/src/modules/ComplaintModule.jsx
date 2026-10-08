@@ -315,7 +315,7 @@ export default function ComplaintModule({ role = "student" }) {
             <span style={{
               fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 12,
               background: c.status === "ACCEPTED" ? "#D1FAE5" : c.status === "REJECTED" ? "#FEE2E2" : "#EFF6FF",
-              color: c.status === "ACCEPTED" ? "#047857" : c.status === "REJECTED" ? "#B91C1C" : "#1E40AF"
+              color: c.status === "ACCEPTED" ? "#047857" : c.status === "REJECTED" ? "#B91C1C" : "#722F37"
             }}>
               {c.status}
             </span>

@@ -1,38 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { maroonDark, gold, sage, brick } from "../theme";
-
-const FOOD_MENU = [
-  // Tea Options
-  { id: "tea_normal", name: "Normal Tea", icon: "☕", price: 15 },
-  { id: "tea_no_sugar", name: "Tea (No Sugar)", icon: "☕", price: 15 },
-  { id: "tea_black", name: "Black Tea", icon: "☕", price: 10 },
-  // Coffee Options
-  { id: "coffee_normal", name: "Normal Coffee", icon: "☕", price: 25 },
-  { id: "coffee_black", name: "Black Coffee", icon: "☕", price: 20 },
-  { id: "coffee_bru", name: "Bru Coffee", icon: "☕", price: 30 },
-  // Juice Options
-  { id: "juice_apple", name: "Apple Juice", icon: "🧃", price: 40 },
-  { id: "juice_orange", name: "Orange Juice", icon: "🧃", price: 40 },
-  { id: "juice_mango", name: "Mango Juice", icon: "🧃", price: 50 },
-  { id: "juice_mixed", name: "Mixed Fruit", icon: "🧃", price: 50 },
-  // Snacks
-  { id: "snack_banana_fritter", name: "Banana Fritters", icon: "🍌", price: 20 },
-  { id: "snack_burger", name: "Burger", icon: "🍔", price: 60 },
-  { id: "snack_sweet_bun", name: "Sweet Bun", icon: "🍞", price: 15 },
-  { id: "snack_sandwich", name: "Sandwich", icon: "🥪", price: 40 },
-  { id: "snack_samosa", name: "Samosa", icon: "🥟", price: 15 },
-  { id: "snack_chicken_roll", name: "Chicken Roll", icon: "🌯", price: 50 },
-  // Meals
-  { id: "lunch", name: "Lunch Meal", icon: "🍛", price: 80 },
-  { id: "biriyani", name: "Biriyani", icon: "🍗", price: 120 },
-  // Ice Creams
-  { id: "icecream_chocobar", name: "Chocobar", icon: "🍦", price: 30 },
-  { id: "icecream_mangobar", name: "Mangobar", icon: "🥭", price: 30 },
-  { id: "icecream_kulfi", name: "Kulfi", icon: "🍨", price: 20 },
-  { id: "icecream_cone", name: "Cone Icecream", icon: "🍦", price: 40 },
-  { id: "icecream_ball", name: "Ball Icecream", icon: "🍧", price: 25 },
-  { id: "icecream_sipup", name: "Sipup", icon: "🧊", price: 10 }
-];
+import { FOOD_MENU } from "./BookingModule";
 
 const INITIAL_CANTEEN_ORDERS = [
   {
@@ -100,25 +68,44 @@ const INITIAL_CANTEEN_ORDERS = [
 const statusStyle = (s) => {
   if (s === "APPROVED") return { bg: "#F0FDF4", border: "#BBF7D0", text: "#15803D", dot: "#16A34A" };
   if (s === "REJECTED") return { bg: "#FEF2F2", border: "#FECACA", text: "#B91C1C", dot: "#DC2626" };
-  return { bg: "#F8FAFC", border: "#E2E8F0", text: "#1E40AF", dot: "#3B82F6" };
+  return { bg: "#F8FAFC", border: "#E2E8F0", text: "#722F37", dot: "#059669" };
 };
 
 export default function CanteenModule() {
-  const [orders, setOrders] = useState(() => {
-    try {
-      const saved = localStorage.getItem("cems_shared_bookings");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const canteenOrders = parsed
-            .filter((b) => b.venue && (b.venue.toLowerCase().includes("canteen") || b.venue.toLowerCase().includes("food")))
-            .map((b) => ({ ...b, canteenStatus: b.canteenStatus || "PENDING", rejectionReason: b.rejectionReason || "" }));
-          if (canteenOrders.length > 0) return canteenOrders;
-        }
-      }
-    } catch (e) {}
-    return INITIAL_CANTEEN_ORDERS;
-  });
+  const [orders, setOrders] = useState(INITIAL_CANTEEN_ORDERS);
+
+  useEffect(() => {
+    const token = localStorage.getItem("cems_access");
+    if (token) {
+      fetch("/api/bookings/bookings/?booking_type=CANTEEN", {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!data) return;
+          const raw = Array.isArray(data) ? data : data.results || [];
+          if (raw.length > 0) {
+            const formatted = raw.map((b) => ({
+              id: `BK-${b.id}`,
+              title: b.title,
+              applicant: b.user_full_name || (typeof b.user === "string" ? b.user : "Student"),
+              applicantRole: b.user_role || "STUDENT",
+              date: b.event_datetime ? b.event_datetime.split("T")[0] : "2026-10-10",
+              canteenStatus: b.status === "CONFIRMED" ? "APPROVED" : b.status === "CANCELLED" ? "REJECTED" : "PENDING",
+              paymentStatus: b.payment_status || "PAID",
+              paymentMethod: b.payment_method || "UPI",
+              paymentTxnId: b.payment_txn_id || `UPI-2026-${b.id}`,
+              items: b.order_items || {},
+              amount: Number(b.amount) || 0,
+              submittedAt: b.created_at ? b.created_at.split("T")[0] : "2026-10-01",
+              rejectionReason: b.cancellation_reason || "",
+            }));
+            setOrders(formatted);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
@@ -127,7 +114,21 @@ export default function CanteenModule() {
   // Track which order has the reject reason box open
   const [rejectingId, setRejectingId] = useState(null);
 
-  const approveOrder = (id) => {
+  const approveOrder = async (id) => {
+    const numericId = String(id).replace("BK-", "");
+    const token = localStorage.getItem("cems_access");
+    if (token && !isNaN(numericId)) {
+      try {
+        await fetch(`/api/bookings/bookings/${numericId}/`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ status: "CONFIRMED" })
+        });
+      } catch (e) {}
+    }
     setOrders((prev) =>
       prev.map((o) => o.id === id ? { ...o, canteenStatus: "APPROVED", rejectionReason: "" } : o)
     );
@@ -139,8 +140,22 @@ export default function CanteenModule() {
     if (!rejectReasons[id]) setRejectReasons((r) => ({ ...r, [id]: "" }));
   };
 
-  const confirmReject = (id) => {
+  const confirmReject = async (id) => {
     const reason = (rejectReasons[id] || "").trim();
+    const numericId = String(id).replace("BK-", "");
+    const token = localStorage.getItem("cems_access");
+    if (token && !isNaN(numericId)) {
+      try {
+        await fetch(`/api/bookings/bookings/${numericId}/`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ status: "CANCELLED", cancellation_reason: reason || "Declined by canteen" })
+        });
+      } catch (e) {}
+    }
     setOrders((prev) =>
       prev.map((o) =>
         o.id === id ? { ...o, canteenStatus: "REJECTED", rejectionReason: reason || "No reason provided." } : o
@@ -204,10 +219,10 @@ export default function CanteenModule() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px,1fr))", gap: 12, marginBottom: 22 }}>
         {[
           { label: "Total Orders",   value: counts.all,      color: maroonDark,  icon: "📋" },
-          { label: "Pending Review", value: counts.pending,  color: "#1E40AF",   icon: "⏳" },
+          { label: "Pending Review", value: counts.pending,  color: "#722F37",   icon: "⏳" },
           { label: "Approved",       value: counts.approved, color: "#15803D",   icon: "✅" },
           { label: "Rejected",       value: counts.rejected, color: "#B91C1C",   icon: "❌" },
-          { label: "Approved Revenue", value: `₹${totalRevenue.toLocaleString()}`, color: "#1D4ED8", icon: "💰" },
+          { label: "Approved Revenue", value: `₹${totalRevenue.toLocaleString()}`, color: "#8B1E3F", icon: "💰" },
         ].map((st) => (
           <div key={st.label} style={{
             background: "#FFF", border: "1px solid #E2E8F0", borderRadius: 10,
@@ -307,7 +322,7 @@ export default function CanteenModule() {
                         <div style={{ display: "flex", gap: 12, marginTop: 7, flexWrap: "wrap" }}>
                           <span style={{ fontSize: 12, fontWeight: 700, color: "#334155" }}>📦 {totalQty} items</span>
                           <span style={{ fontSize: 12, fontWeight: 800, color: "#15803D" }}>💰 ₹{(order.amount || 0).toLocaleString()}</span>
-                          <span style={{ fontSize: 12, fontWeight: 600, color: order.paymentStatus === "PAID" ? "#15803D" : "#3B82F6" }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color: order.paymentStatus === "PAID" ? "#15803D" : "#059669" }}>
                             {order.paymentStatus === "PAID" ? "✅ Paid" : order.paymentStatus === "REFUNDED" ? "↩️ Refunded" : "⚠️ Unpaid"}
                           </span>
                           <span style={{ fontSize: 11, color: "#64748B" }}>Submitted: {order.submittedAt}</span>

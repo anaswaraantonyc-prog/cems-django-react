@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { ink, line, sage, brass, parchment, maroon, maroonDark, maroonSoft } from "../theme";
+import UserProfileModal from "../components/UserProfileModal";
 
 const gold = "#C99A3C";
 
@@ -63,15 +64,15 @@ function IDCardThumb({ src, label }) {
         background: "#FFFDF8", display: "flex", alignItems: "center", justifyContent: "center" }}>
         {src
           ? <img src={src} alt={label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          : <span style={{ fontSize: 10, color: "#9A8088", textAlign: "center", padding: 4 }}>No image</span>}
+          : <span style={{ fontSize: 10, color: "#047857", textAlign: "center", padding: 4 }}>No image</span>}
       </div>
-      <div style={{ fontSize: 10, color: "#9A8088", marginTop: 3 }}>{label}</div>
+      <div style={{ fontSize: 10, color: "#047857", marginTop: 3 }}>{label}</div>
     </div>
   );
 }
 
 /* ── user card ─────────────────────────────────────────────── */
-function UserCard({ user, token, onValidated }) {
+function UserCard({ user, token, onValidated, onViewProfile }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState("");
 
@@ -118,15 +119,15 @@ function UserCard({ user, token, onValidated }) {
           {roleBadge(user.role)}
         </div>
         <div style={{ fontSize: 12, color: "#8A5560", marginTop: 2 }}>@{user.username}</div>
-        {user.email && <div style={{ fontSize: 12, color: "#9A8088" }}>{user.email}</div>}
-        {user.phone_number && <div style={{ fontSize: 12, color: "#9A8088" }}>{user.phone_number}</div>}
-        {user.college_id?.id_number && (
+        {user.email && <div style={{ fontSize: 12, color: "#047857" }}>{user.email}</div>}
+        {user.phone_number && <div style={{ fontSize: 12, color: "#047857" }}>{user.phone_number}</div>}
+        {(user.college_id?.id_year || user.college_id?.id_number) && (
           <div style={{ fontSize: 12, color: "#7A6A50", marginTop: 2, fontFamily: "monospace" }}>
-            ID: {user.college_id.id_number}
+            ID Year: {user.college_id?.id_year || user.college_id?.id_number}
           </div>
         )}
         {user.department && (
-          <div style={{ fontSize: 12, color: "#9A8088" }}>{user.department}</div>
+          <div style={{ fontSize: 12, color: "#047857" }}>{user.department}</div>
         )}
       </div>
 
@@ -138,6 +139,11 @@ function UserCard({ user, token, onValidated }) {
 
       {/* action */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
+        <button onClick={() => onViewProfile(user)}
+          style={{ padding: "6px 14px", borderRadius: 8, border: `1.5px solid ${maroon}`,
+            background: "#fff", color: maroonDark, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+          👁 View Profile
+        </button>
         <button onClick={validate} disabled={loading}
           style={{ padding: "10px 18px", borderRadius: 8, border: "none",
             background: loading ? "#A06070" : `linear-gradient(135deg, ${maroon}, ${maroonSoft})`,
@@ -153,7 +159,7 @@ function UserCard({ user, token, onValidated }) {
 }
 
 /* ── validated user row ────────────────────────────────────── */
-function ValidatedRow({ user }) {
+function ValidatedRow({ user, onViewProfile }) {
   const profileSrc = user.profile_image
     ? (user.profile_image.startsWith("http") ? user.profile_image : `/media/${user.profile_image}`)
     : null;
@@ -170,6 +176,11 @@ function ValidatedRow({ user }) {
       {roleBadge(user.role)}
       <span style={{ fontSize: 11, background: "#c8e6c9", color: "#1b5e20",
         padding: "3px 10px", borderRadius: 20, fontWeight: 700 }}>Active</span>
+      <button onClick={() => onViewProfile(user)}
+        style={{ padding: "4px 10px", borderRadius: 6, border: `1px solid ${maroon}`,
+          background: "#fff", color: maroonDark, fontWeight: 700, fontSize: 11, cursor: "pointer" }}>
+        View
+      </button>
     </div>
   );
 }
@@ -185,6 +196,7 @@ export default function AccessModule({ accessToken }) {
   const [loading, setLoading]     = useState(true);
   const [error, setError]         = useState("");
   const [tab, setTab]             = useState("pending"); // "pending" | "active"
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const load = useCallback(async () => {
     if (!token) { setError("Not authenticated. Please log in as Admin."); setLoading(false); return; }
@@ -210,6 +222,12 @@ export default function AccessModule({ accessToken }) {
     const user = pending.find(u => u.id === userId);
     setPending(p => p.filter(u => u.id !== userId));
     if (user) setValidated(v => [{ ...user, is_validated: true }, ...v]);
+  };
+
+  const handleUserUpdated = (updatedUser) => {
+    setSelectedUser(updatedUser);
+    setPending(p => p.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
+    setValidated(v => v.map(u => u.id === updatedUser.id ? { ...u, ...updatedUser } : u));
   };
 
   /* ── tab pill ── */
@@ -264,7 +282,7 @@ export default function AccessModule({ accessToken }) {
 
       {/* loading skeleton */}
       {loading && (
-        <div style={{ textAlign: "center", padding: "40px 0", color: "#9A8088", fontSize: 14 }}>
+        <div style={{ textAlign: "center", padding: "40px 0", color: "#047857", fontSize: 14 }}>
           Loading users…
         </div>
       )}
@@ -280,7 +298,7 @@ export default function AccessModule({ accessToken }) {
             </div>
           )}
           {pending.map(u => (
-            <UserCard key={u.id} user={u} token={token} onValidated={handleValidated} />
+            <UserCard key={u.id} user={u} token={token} onValidated={handleValidated} onViewProfile={(usr) => setSelectedUser(usr)} />
           ))}
         </>
       )}
@@ -289,14 +307,22 @@ export default function AccessModule({ accessToken }) {
       {!loading && tab === "active" && (
         <>
           {validated.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "48px 0", color: "#9A8088", fontSize: 14 }}>
+            <div style={{ textAlign: "center", padding: "48px 0", color: "#047857", fontSize: 14 }}>
               No users validated in this session yet.
             </div>
           ) : (
-            validated.map(u => <ValidatedRow key={u.id} user={u} />)
+            validated.map(u => <ValidatedRow key={u.id} user={u} onViewProfile={(usr) => setSelectedUser(usr)} />)
           )}
         </>
       )}
+
+      <UserProfileModal
+        user={selectedUser}
+        isOpen={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+        onUserUpdated={handleUserUpdated}
+        canEdit={true}
+      />
     </div>
   );
 }

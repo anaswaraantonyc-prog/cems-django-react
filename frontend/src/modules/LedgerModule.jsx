@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, Label, Stamp, StatusBadge } from "../components/Shared";
 import { inputStyle, buttonStyle, maroonDark, maroon, gold, sage, brick, brownLight } from "../theme";
 
@@ -7,84 +7,117 @@ export default function LedgerModule() {
   const [actionNotice, setActionNotice] = useState("");
   const [regFilter, setRegFilter] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [apiBookings, setApiBookings] = useState([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("cems_access");
+    if (token) {
+      fetch("/api/bookings/bookings/", {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!data) return;
+          const raw = Array.isArray(data) ? data : data.results || [];
+          if (raw.length > 0) {
+            const formatted = raw.map((b) => ({
+              id: `BK-${b.id}`,
+              title: b.title,
+              venue: b.booking_type === "AUDITORIUM" ? "Auditorium" : b.booking_type === "HOSTEL" ? "Hostel" : "Canteen",
+              amount: Number(b.amount) || 0,
+              status: b.status,
+              paymentStatus: b.payment_status || "PAID",
+              paymentMethod: b.payment_method || "UPI",
+            }));
+            setApiBookings(formatted);
+          }
+        })
+        .catch(() => {});
+
+      // Fetch live pending registrations and validated audit logs
+      Promise.all([
+        fetch("/api/auth/pending/", { headers: { Authorization: `Bearer ${token}` } }),
+        fetch("/api/auth/history/", { headers: { Authorization: `Bearer ${token}` } }),
+      ])
+        .then(async ([pRes, hRes]) => {
+          const list = [];
+          if (pRes.ok) {
+            const pData = await pRes.json();
+            const pUsers = Array.isArray(pData) ? pData : (pData.results || []);
+            pUsers.forEach(u => {
+              list.push({
+                id: `REG-${u.id}`,
+                userId: u.id,
+                name: `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.username,
+                email: u.email,
+                role: u.role,
+                dept: u.department || "N/A",
+                idCard: u.college_id?.id_year || u.college_id?.id_number || "Pending",
+                registeredAt: u.created_at ? new Date(u.created_at).toLocaleString() : "Recent",
+                status: "pending",
+              });
+            });
+          }
+          if (hRes.ok) {
+            const hData = await hRes.json();
+            const hLogs = Array.isArray(hData) ? hData : (hData.results || []);
+            hLogs.forEach(h => {
+              list.push({
+                id: `HIS-${h.id}`,
+                name: `${h.first_name || ""} ${h.last_name || ""}`.trim() || h.username,
+                email: h.email,
+                role: h.role,
+                dept: h.department || "N/A",
+                idCard: h.id_year || h.id_number || "Verified",
+                registeredAt: h.decided_at ? new Date(h.decided_at).toLocaleString() : "Recent",
+                status: h.status === "Accepted" ? "approved" : "rejected",
+                approvedAt: h.decided_at ? new Date(h.decided_at).toLocaleString() : "Recent",
+              });
+            });
+          }
+          setRegistrations(list);
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   /* ─────────────────────────────────────────────────────────────
-     USER REGISTRATIONS STATE (Approve Registration People)
+     USER REGISTRATIONS STATE (Live from database)
      ───────────────────────────────────────────────────────────── */
-  const [registrations, setRegistrations] = useState([
-    {
-      id: "REG-2001",
-      name: "Aarav Sharma",
-      email: "aarav.s@college.edu",
-      role: "Student",
-      dept: "Computer Science",
-      idCard: "ID-2026-CS-041",
-      registeredAt: "2026-09-06 10:15 AM",
-      status: "pending",
-    },
-    {
-      id: "REG-2002",
-      name: "Dr. Meenakshi Sundaram",
-      email: "meenakshi.s@college.edu",
-      role: "Faculty",
-      dept: "Electrical Engineering",
-      idCard: "FAC-8842",
-      registeredAt: "2026-09-06 02:30 PM",
-      status: "pending",
-    },
-    {
-      id: "REG-2003",
-      name: "Vikramaditya Roy",
-      email: "vikram.roy@external.org",
-      role: "External Participant",
-      dept: "Inter-College Tech Fest Delegate",
-      idCard: "EXT-9910",
-      registeredAt: "2026-09-05 04:45 PM",
-      status: "pending",
-    },
-    {
-      id: "REG-2004",
-      name: "Neha Verma",
-      email: "neha.v@college.edu",
-      role: "Class Representative",
-      dept: "Information Technology",
-      idCard: "ID-2026-IT-012",
-      registeredAt: "2026-09-04 11:00 AM",
-      status: "approved",
-      approvedAt: "2026-09-04 01:20 PM",
-    },
-    {
-      id: "REG-2005",
-      name: "Ramesh K. Staff",
-      email: "ramesh.canteen@college.edu",
-      role: "Canteen Staff",
-      dept: "Central Dining Services",
-      idCard: "STF-302",
-      registeredAt: "2026-09-03 09:00 AM",
-      status: "approved",
-      approvedAt: "2026-09-03 10:30 AM",
-    },
-  ]);
+  const [registrations, setRegistrations] = useState([]);
 
   /* Master Overview Data */
-  const allBookings = [
-    { id: "BK-801", venue: "Auditorium", title: "Tech Fest Inauguration", bookedBy: "Dr. Meenakshi (Faculty)", amount: "₹15,000", date: "2026-09-15" },
-    { id: "BK-802", venue: "Hostel AC Room", title: "Guest Speaker Accommodation", bookedBy: "Neha Verma (Class Rep)", amount: "₹3,500", date: "2026-09-18" },
-    { id: "BK-803", venue: "Canteen Bulk Order", title: "Cultural Night Snack Packs", bookedBy: "Aarav Sharma (Student)", amount: "₹6,200", date: "2026-09-20" },
-  ];
+  const allBookings = apiBookings.length > 0 ? apiBookings : [];
 
   /* Handler Actions */
-  const approveRegistration = (id) => {
+  const approveRegistration = async (id) => {
+    const reg = registrations.find((r) => r.id === id);
+    if (reg && reg.userId) {
+      try {
+        const token = localStorage.getItem("cems_access");
+        await fetch(`/api/auth/pending/${reg.userId}/validate/`, {
+          method: "POST", headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (e) {}
+    }
     const now = new Date().toLocaleString();
     setRegistrations((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: "approved", approvedAt: now } : r))
     );
-    const reg = registrations.find((r) => r.id === id);
     setActionNotice(`✅ Registration Approved for ${reg ? reg.name : id}! Platform clearance issued.`);
     setTimeout(() => setActionNotice(""), 5000);
   };
 
-  const rejectRegistration = (id) => {
+  const rejectRegistration = async (id) => {
+    const reg = registrations.find((r) => r.id === id);
+    if (reg && reg.userId) {
+      try {
+        const token = localStorage.getItem("cems_access");
+        await fetch(`/api/auth/pending/${reg.userId}/reject/`, {
+          method: "DELETE", headers: { Authorization: `Bearer ${token}` }
+        });
+      } catch (e) {}
+    }
     setRegistrations((prev) =>
       prev.map((r) => (r.id === id ? { ...r, status: "rejected" } : r))
     );
@@ -237,7 +270,7 @@ export default function LedgerModule() {
 
             <Card style={{ marginBottom: 0, borderLeft: "4px solid #F59E0B" }}>
               <Label>Pending Approvals</Label>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#1D4ED8" }}>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#8B1E3F" }}>
                 {registrations.filter((r) => r.status === "pending").length} Awaiting
               </div>
               <div style={{ fontSize: 11, color: brownLight, marginTop: 4 }}>
@@ -281,7 +314,7 @@ export default function LedgerModule() {
                       📧 {reg.email} · Department: <strong>{reg.dept}</strong>
                     </div>
                     <div style={{ fontSize: 12, color: "#6B644C", marginTop: 2 }}>
-                      College ID Code: <strong>{reg.idCard}</strong> · Submitted: {reg.registeredAt}
+                      ID Year: <strong>{reg.idCard}</strong> · Submitted: {reg.registeredAt}
                     </div>
                   </div>
 
@@ -331,7 +364,7 @@ export default function LedgerModule() {
                   <div>
                     <div style={{ fontWeight: 700, color: maroonDark }}>{reg.name} ({reg.role})</div>
                     <div style={{ fontSize: 12, color: "#475569", marginTop: 2 }}>
-                      {reg.email} · ID: {reg.idCard} · Department: {reg.dept}
+                      {reg.email} · ID Year: {reg.idCard} · Department: {reg.dept}
                     </div>
                     <div style={{ fontSize: 11, color: "#047857", marginTop: 4 }}>
                       Platform Clearance Approved at {reg.approvedAt || "Recorded"}
@@ -349,14 +382,7 @@ export default function LedgerModule() {
           TAB 2: MASTER FINANCIAL LEDGER & SYSTEM OVERVIEW
          ══════════════════════════════════════════════════════════════ */}
       {activeTab === "overview" && (() => {
-        const savedBookingsStr = localStorage.getItem("cems_shared_bookings");
-        let bookingList = allBookings;
-        if (savedBookingsStr) {
-          try {
-            const parsed = JSON.parse(savedBookingsStr);
-            if (Array.isArray(parsed) && parsed.length > 0) bookingList = parsed;
-          } catch (e) {}
-        }
+        let bookingList = apiBookings.length > 0 ? apiBookings : allBookings;
 
         const totalRevenue = bookingList
           .filter((b) => b.paymentStatus === "PAID" || b.status === "COMPLETED" || b.status === "CONFIRMED")
@@ -393,7 +419,7 @@ export default function LedgerModule() {
 
               <Card style={{ marginBottom: 0, borderLeft: `4px solid ${gold}` }}>
                 <Label>Active Venue Reservations</Label>
-                <div style={{ fontSize: 24, fontWeight: 900, color: "#1D4ED8" }}>
+                <div style={{ fontSize: 24, fontWeight: 900, color: "#8B1E3F" }}>
                   {bookingList.length} Total Logs
                 </div>
                 <div style={{ fontSize: 11, color: brownLight, marginTop: 4 }}>
@@ -451,10 +477,10 @@ export default function LedgerModule() {
                       </div>
 
                       <div style={{ textAlign: "right" }}>
-                        <div style={{ fontWeight: 900, color: isPaid ? "#059669" : "#3B82F6", fontSize: 15 }}>
+                        <div style={{ fontWeight: 900, color: isPaid ? "#059669" : "#059669", fontSize: 15 }}>
                           ₹{itemAmount.toLocaleString()}
                         </div>
-                        <div style={{ fontSize: 11, marginTop: 2, fontWeight: 700, color: isPaid ? "#15803D" : "#1D4ED8" }}>
+                        <div style={{ fontSize: 11, marginTop: 2, fontWeight: 700, color: isPaid ? "#15803D" : "#8B1E3F" }}>
                           {isPaid ? `✅ Paid via ${b.paymentMethod || "UPI"}` : "⚠️ Payment Due"}
                         </div>
                         {b.paymentTxnId && (

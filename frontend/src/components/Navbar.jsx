@@ -1,11 +1,11 @@
 export default function Navbar({ view, onNav, onEmergency }) {
   return (
     <nav style={{
-      background: "linear-gradient(90deg, #0a192f 0%, #1c2541 100%)",
+      background: "linear-gradient(90deg, #581124 0%, #722F37 100%)",
       display: "flex", alignItems: "center", justifyContent: "space-between",
       padding: "0 28px", height: 60,
       borderBottom: "1px solid rgba(255,255,255,0.06)",
-      boxShadow: "0 4px 24px rgba(10, 25, 47, 0.25)",
+      boxShadow: "0 4px 24px rgba(88, 17, 36, 0.35)",
       position: "sticky", top: 0, zIndex: 20,
       backdropFilter: "blur(12px)",
     }}>
@@ -13,10 +13,10 @@ export default function Navbar({ view, onNav, onEmergency }) {
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{
           width: 38, height: 38, borderRadius: 10,
-          background: "linear-gradient(135deg, #1d4ed8, #1e40af)",
+          background: "linear-gradient(135deg, #8B1E3F, #722F37)",
           display: "flex", alignItems: "center", justifyContent: "center",
           color: "#ffffff", fontWeight: 800, fontSize: 18,
-          boxShadow: "0 4px 14px rgba(29, 78, 216, 0.35)",
+          boxShadow: "0 4px 14px rgba(201, 107, 133, 0.5)",
           letterSpacing: "-0.02em",
         }}>
           C
@@ -41,16 +41,16 @@ export default function Navbar({ view, onNav, onEmergency }) {
           <button key={v} onClick={() => onNav(v)}
             style={{
               padding: "8px 20px", borderRadius: 9999,
-              border: `1.5px solid ${view === v ? "#1d4ed8" : "rgba(255, 255, 255, 0.15)"}`,
+              border: `1.5px solid ${view === v ? "#8B1E3F" : "rgba(255, 255, 255, 0.15)"}`,
               background: view === v
-                ? "linear-gradient(135deg, #1d4ed8, #1e40af)"
+                ? "linear-gradient(135deg, #8B1E3F, #722F37)"
                 : "rgba(255,255,255,0.04)",
               color: view === v ? "#ffffff" : "rgba(203,213,225,0.9)",
               fontSize: 13, fontWeight: 600, cursor: "pointer",
               letterSpacing: "0.01em",
               transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               textTransform: "capitalize",
-              boxShadow: view === v ? "0 4px 16px rgba(29, 78, 216, 0.3)" : "none",
+              boxShadow: view === v ? "0 4px 16px rgba(201, 107, 133, 0.4)" : "none",
             }}>
             {v}
           </button>
@@ -58,7 +58,7 @@ export default function Navbar({ view, onNav, onEmergency }) {
 
         {/* emergency button */}
         <button onClick={onEmergency}
-          title="Emergency: scan ID card and call medical responder"
+          title="Emergency SOS: Scan Face or ID Card for emergency assistance"
           style={{
             display: "flex", alignItems: "center", gap: 7,
             padding: "8px 18px", borderRadius: 9999, border: "none",

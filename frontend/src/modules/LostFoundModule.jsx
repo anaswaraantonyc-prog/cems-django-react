@@ -27,7 +27,7 @@ export default function LostFoundModule({ role = "student" }) {
 
   const fetchItems = () => {
     const token = localStorage.getItem("cems_access");
-    fetch("http://localhost:8000/api/lostfound/items/", {
+    fetch("/api/lostfound/items/", {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then((res) => res.json())
@@ -60,7 +60,7 @@ export default function LostFoundModule({ role = "student" }) {
     if (formVideo) formData.append("video", formVideo);
 
     try {
-      const res = await fetch("http://localhost:8000/api/lostfound/items/", {
+      const res = await fetch("/api/lostfound/items/", {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData
@@ -97,7 +97,7 @@ export default function LostFoundModule({ role = "student" }) {
     if (chatVideo) formData.append("video", chatVideo);
 
     try {
-      const res = await fetch(`http://localhost:8000/api/lostfound/items/${selectedItem.id}/messages/`, {
+      const res = await fetch(`/api/lostfound/items/${selectedItem.id}/messages/`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData
@@ -135,7 +135,7 @@ export default function LostFoundModule({ role = "student" }) {
       
       {/* Header Banner */}
       <div style={{
-        background: `linear-gradient(135deg, ${navyBlue} 0%, #0B132B 100%)`,
+        background: `linear-gradient(135deg, ${navyBlue} 0%, #380A15 100%)`,
         borderRadius: 12, padding: "20px 24px", marginBottom: 20, color: "#FFF",
         boxShadow: "0 4px 12px rgba(0,0,0,0.1)", display: "flex", justifyContent: "space-between", alignItems: "center"
       }}>
@@ -217,7 +217,7 @@ export default function LostFoundModule({ role = "student" }) {
       {/* Item Details & Chat Modal */}
       {selectedItem && (
         <div style={{
-          position: "fixed", inset: 0, background: "rgba(10, 25, 47, 0.7)", zIndex: 1000,
+          position: "fixed", inset: 0, background: "rgba(88, 17, 36, 0.7)", zIndex: 1000,
           display: "flex", justifyContent: "center", alignItems: "center", padding: 20, backdropFilter: "blur(4px)"
         }}>
           <div className="animate-slide-up" style={{

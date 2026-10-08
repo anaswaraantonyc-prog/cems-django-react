@@ -45,29 +45,72 @@ function AutoCall({ number, name }) {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   CAMERA SCANNER COMPONENT (Only used in Emergency Login Mode)
+   CAMERA SCANNER COMPONENT (Two Completely Independent Methods)
+   METHOD 1: ID Card Scanner (Rectangular guide, OCR, no face)
+   METHOD 2: Face Scanner (Oval guide, biometrics, no card)
 ═══════════════════════════════════════════════════════════ */
-function CameraView({ mode, onCapture }) {
-  const videoRef   = useRef(null);
-  const canvasRef  = useRef(null);
-  const streamRef  = useRef(null);
-  const countRef   = useRef(null);
+function CameraView({ mode, onCapture, onCancel }) {
+  const videoRef    = useRef(null);
+  const canvasRef   = useRef(null);
+  const streamRef   = useRef(null);
+  const scanLoopRef = useRef(null);
 
-  const [starting,  setStarting]  = useState(true);
-  const [camError,  setCamError]  = useState("");
-  const [countdown, setCountdown] = useState(null);
+  const [starting,        setStarting]        = useState(true);
+  const [camError,        setCamError]        = useState("");
+  const [scanWarning,     setScanWarning]     = useState("");
+  const [identityInput,   setIdentityInput]   = useState("");
+  const [scanStatus,      setScanStatus]      = useState("searching"); // 'searching' | 'detected' | 'reading' | 'verified'
+  const [holdProgress,    setHoldProgress]    = useState(0); // 0 to 100%
+  const [capturedPreview, setCapturedPreview] = useState(null);
 
   const isIdCard = mode === "idcard";
-  const frameLabel = isIdCard
-    ? "Hold the complete ID card flat inside the frame"
-    : "Look straight at the camera with your face in the oval";
 
-  /* start camera */
+  /* Guidance titles and subtitles per specifications */
+  let guidanceTitle = "";
+  let guidanceSubtitle = "";
+
+  if (isIdCard) {
+    if (scanStatus === "verified") {
+      guidanceTitle = "✓ ID card verified";
+      guidanceSubtitle = "Identity verified. Opening emergency profile...";
+    } else if (scanStatus === "reading") {
+      guidanceTitle = "Reading ID card...";
+      guidanceSubtitle = "Extracting card information via optical scan...";
+    } else if (scanStatus === "detected") {
+      guidanceTitle = "ID card detected";
+      guidanceSubtitle = "Hold steady inside the card frame...";
+    } else {
+      guidanceTitle = "Scan your College ID Card";
+      guidanceSubtitle = "Place the ID card inside the frame.";
+    }
+  } else {
+    // Face Scanner mode
+    if (starting) {
+      guidanceTitle = "Initializing camera...";
+      guidanceSubtitle = "Please allow camera access and position your face inside the frame...";
+    } else if (scanStatus === "verified") {
+      guidanceTitle = "Face verified";
+      guidanceSubtitle = "Identity confirmed. Opening emergency profile...";
+    } else if (scanStatus === "reading") {
+      guidanceTitle = "Verifying identity...";
+      guidanceSubtitle = "Analyzing face & authenticating against registered face reference...";
+    } else if (scanStatus === "detected") {
+      guidanceTitle = "Face detected";
+      guidanceSubtitle = "Hold still...";
+    } else {
+      guidanceTitle = "Face Verification";
+      guidanceSubtitle = "Position your face inside the frame.";
+    }
+  }
+
+  /* Start camera */
   useEffect(() => {
     let cancelled = false;
     (async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setCamError("Camera not available in this browser."); setStarting(false); return;
+        setCamError("Camera permission is required. Camera API is not accessible in this browser.");
+        setStarting(false);
+        return;
       }
       try {
         let stream;
@@ -82,175 +125,565 @@ function CameraView({ mode, onCapture }) {
         }
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          await videoRef.current.play();
+        }
         setStarting(false);
-        setCountdown(3); // start countdown immediately
       } catch (err) {
-        setCamError(err.message || "Camera permission denied."); setStarting(false);
+        if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
+          setCamError("Camera permission denied. Please allow camera access in your browser settings and try again.");
+        } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
+          setCamError("Camera unavailable. No webcam or camera device was found on this system.");
+        } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
+          setCamError("Camera is already in use by another application. Please close other software using your camera.");
+        } else {
+          setCamError("Camera permission is required. Please enable camera access in your browser settings.");
+        }
+        setStarting(false);
       }
     })();
     return () => {
       cancelled = true;
       streamRef.current?.getTracks().forEach(t => t.stop());
-      if (countRef.current) clearTimeout(countRef.current);
+      if (scanLoopRef.current) clearInterval(scanLoopRef.current);
     };
   }, [isIdCard]);
 
-  /* countdown tick → auto capture */
-  useEffect(() => {
-    if (countdown === null) return;
-    if (countdown === 0) { doCapture(); return; }
-    const id = setTimeout(() => setCountdown(c => c - 1), 1000);
-    countRef.current = id;
-    return () => clearTimeout(id);
-  }, [countdown]); // eslint-disable-line
+  /* Capture ID Card Flow (Pure ID Card - NO face step) */
+  const doCaptureCard = useCallback(async () => {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth) return;
 
-  const doCapture = useCallback(() => {
-    const video  = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !video.videoWidth) { setTimeout(doCapture, 300); return; }
-    canvas.width  = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext("2d").drawImage(video, 0, 0);
-    canvas.toBlob(blob => {
-      if (blob) {
-        const fname = isIdCard ? "id-card-scan.jpg" : "face-scan.jpg";
-        onCapture(new File([blob], fname, { type: "image/jpeg" }));
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+
+    // Crop to the rectangular card guide: left 7%, top 12%, width 86%, height 76%
+    const cropX = Math.round(vw * 0.07);
+    const cropY = Math.round(vh * 0.12);
+    const cropW = Math.round(vw * 0.86);
+    const cropH = Math.round(vh * 0.76);
+
+    const cardCanvas = document.createElement("canvas");
+    cardCanvas.width = cropW;
+    cardCanvas.height = cropH;
+    const cctx = cardCanvas.getContext("2d");
+    cctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+    const previewUrl = cardCanvas.toDataURL("image/jpeg", 0.92);
+    setCapturedPreview(previewUrl);
+    setScanStatus("reading");
+
+    let extractedOcr = "";
+    try {
+      const { default: Tesseract } = await import("tesseract.js");
+      const ocrRes = await Promise.race([
+        Tesseract.recognize(cardCanvas, "eng"),
+        new Promise(resolve => setTimeout(() => resolve(null), 6500)),
+      ]);
+      if (ocrRes?.data?.text) {
+        extractedOcr = ocrRes.data.text;
       }
-    }, "image/jpeg", 0.95);
-  }, [isIdCard, onCapture]);
+    } catch {}
 
-  const resetCountdown = () => {
-    if (countRef.current) clearTimeout(countRef.current);
-    setCountdown(3);
+    cardCanvas.toBlob(blob => {
+      if (!blob) return;
+      const cardFile = new File([blob], "id-card-scan.jpg", { type: "image/jpeg" });
+      setScanStatus("verified");
+      setTimeout(() => {
+        onCapture(cardFile, identityInput, {
+          idCardFile: cardFile,
+          cardPreview: previewUrl,
+          ocrText: extractedOcr,
+          identityInput,
+        });
+      }, 400);
+    }, "image/jpeg", 0.95);
+  }, [identityInput, onCapture]);
+
+  /* Capture Face Flow (Pure Face - NO ID card step) */
+  const doCaptureFace = useCallback(() => {
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !video.videoWidth) return;
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
+
+    const facePreview = canvas.toDataURL("image/jpeg", 0.92);
+    setCapturedPreview(facePreview);
+    setScanStatus("reading");
+
+    canvas.toBlob(blob => {
+      if (!blob) return;
+      const faceFile = new File([blob], "face-scan.jpg", { type: "image/jpeg" });
+      setScanStatus("verified");
+      setTimeout(() => {
+        onCapture(faceFile, "", {
+          faceFile,
+          facePreview,
+        });
+      }, 500);
+    }, "image/jpeg", 0.95);
+  }, [onCapture]);
+
+  /* Real-time frame detection loop */
+  useEffect(() => {
+    if (starting || camError) return;
+
+    let steadyCounter = 0;
+    scanLoopRef.current = setInterval(() => {
+      const video = videoRef.current;
+      if (!video || !video.videoWidth || !video.videoHeight) return;
+
+      const sampleW = 160;
+      const sampleH = 100;
+      const sampleCanvas = document.createElement("canvas");
+      sampleCanvas.width = sampleW;
+      sampleCanvas.height = sampleH;
+      const ctx = sampleCanvas.getContext("2d");
+      ctx.drawImage(video, 0, 0, sampleW, sampleH);
+      const imgData = ctx.getImageData(0, 0, sampleW, sampleH);
+      const d = imgData.data;
+
+      if (isIdCard) {
+        // ID Card mode: Check rectangular sharpness & contrast
+        if (scanStatus === "reading" || scanStatus === "verified") return;
+
+        let sum = 0, sumSq = 0, count = 0, totalB = 0;
+        for (let y = 2; y < sampleH - 2; y += 3) {
+          for (let x = 2; x < sampleW - 2; x += 3) {
+            const idx = (y * sampleW + x) * 4;
+            const gray = (d[idx] + d[idx + 1] + d[idx + 2]) / 3;
+            totalB += gray;
+            const top = (d[idx - sampleW * 4] + d[idx - sampleW * 4 + 1] + d[idx - sampleW * 4 + 2]) / 3;
+            const bot = (d[idx + sampleW * 4] + d[idx + sampleW * 4 + 1] + d[idx + sampleW * 4 + 2]) / 3;
+            const left = (d[idx - 4] + d[idx - 3] + d[idx - 2]) / 3;
+            const right = (d[idx + 4] + d[idx + 5] + d[idx + 6]) / 3;
+            const lap = Math.abs(4 * gray - top - bot - left - right);
+            sum += lap;
+            sumSq += lap * lap;
+            count++;
+          }
+        }
+        const mean = sum / count;
+        const variance = (sumSq / count) - (mean * mean);
+        const avgBrightness = totalB / count;
+
+        const hasCardInFrame = variance > 12.0 && avgBrightness > 30 && avgBrightness < 240;
+
+        if (hasCardInFrame) {
+          steadyCounter++;
+          const progressPct = Math.min(100, Math.round((steadyCounter / 7) * 100));
+          setHoldProgress(progressPct);
+          setScanStatus("detected");
+          setScanWarning("");
+
+          if (steadyCounter >= 7) {
+            doCaptureCard();
+          }
+        } else {
+          steadyCounter = Math.max(0, steadyCounter - 1);
+          setHoldProgress(0);
+          setScanStatus("searching");
+        }
+      } else {
+        // Face Scanner mode: Check centered face presence & lighting
+        if (scanStatus === "reading" || scanStatus === "verified") return;
+
+        let skinCount = 0;
+        let leftSideSkin = 0;
+        let rightSideSkin = 0;
+        let totalCount = 0;
+        let totalB = 0;
+
+        for (let i = 0; i < d.length; i += 16) {
+          const r = d[i], g = d[i + 1], b = d[i + 2];
+          totalB += (r + g + b) / 3;
+          const pixelX = ((i / 4) % sampleW);
+          if (r > 60 && g > 40 && b > 20 && r > g && r > b && (r - b) > 10) {
+            skinCount++;
+            if (pixelX < sampleW * 0.4) leftSideSkin++;
+            if (pixelX > sampleW * 0.6) rightSideSkin++;
+          }
+          totalCount++;
+        }
+
+        const skinRatio = skinCount / totalCount;
+        const avgB = totalB / totalCount;
+
+        if (avgB < 25) {
+          setScanWarning("Face image quality is insufficient (too dark). Move to better light.");
+          setScanStatus("searching");
+          steadyCounter = 0;
+          setHoldProgress(0);
+        } else if (avgB > 240) {
+          setScanWarning("Face image quality is insufficient (overexposed). Reduce glare.");
+          setScanStatus("searching");
+          steadyCounter = 0;
+          setHoldProgress(0);
+        } else if (leftSideSkin > totalCount * 0.15 && rightSideSkin > totalCount * 0.15) {
+          setScanWarning("Only one person should be visible during face verification.");
+          setScanStatus("searching");
+          steadyCounter = 0;
+          setHoldProgress(0);
+        } else if (skinRatio > 0.06) {
+          steadyCounter++;
+          const progressPct = Math.min(100, Math.round((steadyCounter / 7) * 100));
+          setHoldProgress(progressPct);
+          setScanStatus("detected");
+          setScanWarning("");
+
+          if (steadyCounter >= 7) {
+            doCaptureFace();
+          }
+        } else {
+          steadyCounter = Math.max(0, steadyCounter - 1);
+          setHoldProgress(0);
+          setScanStatus("searching");
+          setScanWarning("Face not detected. Please position your face inside the frame.");
+        }
+      }
+    }, 200);
+
+    return () => {
+      if (scanLoopRef.current) clearInterval(scanLoopRef.current);
+    };
+  }, [starting, camError, isIdCard, scanStatus, doCaptureCard, doCaptureFace]);
+
+  const handleManualCapture = () => {
+    setScanWarning("");
+    if (isIdCard) {
+      doCaptureCard();
+    } else {
+      doCaptureFace();
+    }
   };
 
-  const cdColor = countdown === 1 ? "#ff5252" : countdown === 2 ? "#ffb300" : "#69f0ae";
+  const resetScan = () => {
+    setScanStatus("searching");
+    setHoldProgress(0);
+    setCapturedPreview(null);
+    setScanWarning("");
+    setCamError("");
+    setIdentityInput("");
+  };
 
   return (
     <div style={{ textAlign: "center" }}>
-      {/* preview box */}
+      {/* Guidance Header Banner */}
+      <div style={{
+        background: scanStatus === "verified" ? "#ECFDF5" : scanStatus === "detected" ? "#FFFBEB" : "#F8FAFC",
+        border: `1.5px solid ${scanStatus === "verified" ? "#10B981" : scanStatus === "detected" ? gold : "#CBD5E1"}`,
+        borderRadius: 10, padding: "12px 14px", marginBottom: 12, textAlign: "center",
+        boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
+      }}>
+        <div style={{
+          fontSize: 15, fontWeight: 800,
+          color: scanStatus === "verified" ? "#15803D" : maroonDark,
+          display: "flex", alignItems: "center", justifyContent: "center", gap: 8
+        }}>
+          <span style={{ fontSize: 18 }}>{isIdCard ? "🪪" : "👤"}</span>
+          <span>{guidanceTitle}</span>
+        </div>
+        <div style={{ fontSize: 12, color: "#64748B", marginTop: 3 }}>
+          {guidanceSubtitle}
+        </div>
+      </div>
+
+      {/* Camera Viewport with Mode-Specific Guides */}
       <div style={{
         position: "relative", width: "100%", maxWidth: 440,
-        height: 280, margin: "0 auto 12px", borderRadius: 12,
-        overflow: "hidden", border: `2.5px solid ${gold}`, background: "#000",
+        height: 290, margin: "0 auto 12px", borderRadius: 14,
+        overflow: "hidden",
+        border: `2.5px solid ${scanStatus === "verified" ? "#10B981" : scanWarning ? "#DC2626" : gold}`,
+        background: "#000",
+        boxShadow: "0 8px 24px rgba(0,0,0,0.25)"
       }}>
-        <video ref={videoRef} muted playsInline
-          style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        <video
+          ref={videoRef}
+          muted
+          playsInline
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+        />
 
-        {isIdCard
-          ? <div style={{
-              position: "absolute", left: "5%", right: "5%",
-              top: "12%", bottom: "12%",
-              border: "2.5px dashed rgba(255,255,255,0.90)",
-              borderRadius: 8, pointerEvents: "none",
-            }} />
-          : <div style={{
-              position: "absolute", left: "25%", right: "25%",
-              top: "8%", bottom: "8%",
-              border: "3px solid rgba(255,255,255,0.85)",
-              borderRadius: "50%", pointerEvents: "none",
-            }} />
-        }
-
-        {countdown !== null && countdown > 0 && (
+        {/* ── METHOD 1: CARD RECTANGULAR GUIDE (NO FACE GUIDE) ── */}
+        {isIdCard && (
           <div style={{
-            position: "absolute", inset: 0,
-            background: "rgba(0,0,0,0.42)",
-            display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center",
+            position: "absolute", left: "7%", right: "7%",
+            top: "14%", bottom: "14%",
+            borderRadius: 10,
+            border: scanStatus === "verified"
+              ? "3px solid #10B981"
+              : scanStatus === "detected"
+              ? `2.5px solid ${gold}`
+              : "2px dashed rgba(255,255,255,0.75)",
+            boxShadow: scanStatus === "verified"
+              ? "0 0 20px rgba(16,185,129,0.7)"
+              : scanStatus === "detected"
+              ? "0 0 16px rgba(212,175,55,0.5)"
+              : "none",
             pointerEvents: "none",
+            transition: "all 0.25s ease",
+            overflow: "hidden"
           }}>
-            <div style={{ fontSize: 70, fontWeight: 900, color: cdColor,
-              textShadow: "0 2px 14px rgba(0,0,0,0.7)", lineHeight: 1,
-              fontFamily: "Georgia, serif" }}>{countdown}</div>
-            <div style={{ fontSize: 13, color: "#fff", marginTop: 8,
-              fontWeight: 600, letterSpacing: "0.04em" }}>Hold steady…</div>
+            {/* 4 Corner Reticles */}
+            <span style={{ position: "absolute", top: 0, left: 0, width: 18, height: 18, borderTop: "3.5px solid #F59E0B", borderLeft: "3.5px solid #F59E0B" }} />
+            <span style={{ position: "absolute", top: 0, right: 0, width: 18, height: 18, borderTop: "3.5px solid #F59E0B", borderRight: "3.5px solid #F59E0B" }} />
+            <span style={{ position: "absolute", bottom: 0, left: 0, width: 18, height: 18, borderBottom: "3.5px solid #F59E0B", borderLeft: "3.5px solid #F59E0B" }} />
+            <span style={{ position: "absolute", bottom: 0, right: 0, width: 18, height: 18, borderBottom: "3.5px solid #F59E0B", borderRight: "3.5px solid #F59E0B" }} />
+
+            {/* Scanning radar line */}
+            {scanStatus !== "verified" && (
+              <div style={{
+                position: "absolute", left: 0, right: 0, height: 2.5,
+                background: "linear-gradient(90deg, transparent, #F59E0B, #10B981, transparent)",
+                boxShadow: "0 0 8px #10B981",
+                animation: "scanBeam 2s ease-in-out infinite alternate",
+              }} />
+            )}
+
+            {/* Center frame guide label */}
+            {scanStatus !== "verified" && (
+              <div style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                textAlign: "center",
+                color: "rgba(255, 255, 255, 0.85)",
+                textShadow: "0 2px 6px rgba(0,0,0,0.85)",
+                pointerEvents: "none",
+                userSelect: "none",
+                width: "90%",
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+                  PLACE ENTIRE ID CARD
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", opacity: 0.9, marginTop: 2 }}>
+                  INSIDE THIS FRAME
+                </div>
+              </div>
+            )}
+
+            {/* Hold Steady Progress Bar */}
+            {scanStatus === "detected" && holdProgress > 0 && (
+              <div style={{
+                position: "absolute", bottom: 0, left: 0, height: 6,
+                width: `${holdProgress}%`, background: "#10B981",
+                transition: "width 0.15s linear"
+              }} />
+            )}
           </div>
         )}
 
-        {countdown === 0 && (
+        {/* ── METHOD 2: FACE OVAL GUIDE (NO CARD GUIDE) ── */}
+        {!isIdCard && (
           <div style={{
-            position: "absolute", inset: 0,
-            background: "rgba(255,255,255,0.88)",
-            animation: "flash 0.28s ease-out forwards",
+            position: "absolute", left: "22%", right: "22%",
+            top: "8%", bottom: "8%",
+            borderRadius: "50%",
+            border: scanStatus === "verified"
+              ? "3.5px solid #10B981"
+              : scanStatus === "detected"
+              ? "3px solid #10B981"
+              : `2.5px solid ${gold}`,
+            boxShadow: scanStatus === "detected"
+              ? "0 0 20px rgba(16,185,129,0.6)"
+              : "0 0 12px rgba(212,175,55,0.4)",
             pointerEvents: "none",
+            transition: "all 0.25s ease"
+          }}>
+            {/* Hold Steady Progress Bar around face oval */}
+            {scanStatus === "detected" && holdProgress > 0 && (
+              <div style={{
+                position: "absolute", bottom: 10, left: "20%", right: "20%", height: 5,
+                background: "#10B981", borderRadius: 3,
+                width: `${holdProgress * 0.6}%`, margin: "0 auto",
+                transition: "width 0.15s linear"
+              }} />
+            )}
+          </div>
+        )}
+
+        {/* Flash overlay upon successful capture */}
+        {scanStatus === "verified" && (
+          <div style={{
+            position: "absolute", inset: 0, background: "rgba(16,185,129,0.35)",
+            animation: "flash 0.4s ease-out forwards", pointerEvents: "none"
           }} />
+        )}
+
+        {/* Camera starting indicator */}
+        {starting && (
+          <div style={{
+            position: "absolute", inset: 0, background: "rgba(0,0,0,0.75)",
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            color: "#fff", gap: 10
+          }}>
+            <div style={{ width: 32, height: 32, border: "3px solid #ccc", borderTopColor: gold, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            <div style={{ fontSize: 13, fontWeight: 600 }}>Starting camera…</div>
+          </div>
         )}
       </div>
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {starting && !camError && (
-        <div style={{ fontSize: 12, color: "#8A8368", marginBottom: 6 }}>Starting camera…</div>
-      )}
+      {/* Warnings & Errors */}
       {camError && (
-        <div style={{ fontSize: 12, color: brick, marginBottom: 8 }}>⚠️ {camError}</div>
+        <div style={{
+          background: "#FEF2F2", border: "1.5px solid #FECACA",
+          borderRadius: 8, padding: "10px 14px", marginBottom: 10,
+          fontSize: 12, color: "#DC2626", textAlign: "left"
+        }}>
+          ⚠️ {camError}
+        </div>
       )}
 
-      <div style={{ fontSize: 12, color: "#6B644C", marginBottom: 12 }}>
-        {camError ? "Use the file upload option below." : frameLabel}
-      </div>
+      {scanWarning && (
+        <div style={{
+          background: "#FEF2F2", border: "1.5px solid #FECACA",
+          borderRadius: 8, padding: "10px 14px", marginBottom: 10,
+          fontSize: 12, color: "#DC2626", textAlign: "left"
+        }}>
+          ⚠️ {scanWarning}
+        </div>
+      )}
 
-      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+      {/* Optional Card Metadata Hint (For ID Card Scanner only if text is worn out) */}
+      {isIdCard && (
+        <div style={{
+          marginBottom: 12, textAlign: "left", background: "#FFFFFF",
+          border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px"
+        }}>
+          <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: maroonDark, marginBottom: 4 }}>
+            Card worn out or low lighting? (Optional identifier hint)
+          </label>
+          <input
+            type="text"
+            placeholder="Student Name, Email, or ID Year (e.g. Rahul Jacob or rahul@gmail.com)"
+            value={identityInput}
+            onChange={e => setIdentityInput(e.target.value)}
+            style={{
+              width: "100%", padding: "7px 10px", fontSize: 12, borderRadius: 6,
+              border: "1px solid #CBD5E1", outline: "none", boxSizing: "border-box"
+            }}
+          />
+          <div style={{ fontSize: 10, color: "#64748B", marginTop: 4 }}>
+            Note: ID Year (e.g. MCA-2025-2027) is a batch identifier. Backend verifies your exact registered account using card details.
+          </div>
+        </div>
+      )}
+
+      {/* Action Controls */}
+      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 6 }}>
         <button
           disabled={!!camError || starting}
-          onClick={() => { if (countRef.current) clearTimeout(countRef.current); doCapture(); }}
+          onClick={handleManualCapture}
           style={{
-            padding: "9px 22px", borderRadius: 8, border: "none",
-            background: `linear-gradient(135deg, ${maroon}, ${maroonSoft})`,
-            color: "#fff", fontWeight: 700, fontSize: 13,
+            padding: "10px 22px", borderRadius: 8, border: "none",
+            background: isIdCard
+              ? `linear-gradient(135deg, ${maroon}, ${maroonSoft})`
+              : "linear-gradient(135deg, #15803D, #16A34A)",
+            color: "#fff", fontWeight: 800, fontSize: 13,
             cursor: (camError || starting) ? "not-allowed" : "pointer",
             opacity: (camError || starting) ? 0.5 : 1,
-            boxShadow: "0 3px 10px rgba(107,30,43,0.35)",
+            boxShadow: isIdCard ? "0 3px 10px rgba(107,30,43,0.35)" : "0 3px 10px rgba(22,163,74,0.35)",
           }}>
-          {isIdCard ? "📷 Scan Card Now" : "🤳 Scan Face Now"}
+          {isIdCard ? "📷 Capture ID Card Now" : "🤳 Scan Face Now"}
         </button>
+
         {!camError && !starting && (
-          <button onClick={resetCountdown}
+          <button
+            onClick={resetScan}
             style={{
-              padding: "9px 18px", borderRadius: 8,
+              padding: "10px 16px", borderRadius: 8,
               border: `1.5px solid ${gold}`, background: "transparent",
-              color: gold, fontWeight: 700, fontSize: 13, cursor: "pointer",
-            }}>↻ Retry</button>
+              color: maroonDark, fontWeight: 700, fontSize: 13, cursor: "pointer",
+            }}>
+            ↻ Restart Scan
+          </button>
+        )}
+
+        {onCancel && (
+          <button
+            onClick={onCancel}
+            style={{
+              padding: "10px 16px", borderRadius: 8,
+              border: "1.5px solid #CBD5E1", background: "transparent",
+              color: "#64748B", fontWeight: 700, fontSize: 13, cursor: "pointer",
+            }}>
+            Cancel
+          </button>
         )}
       </div>
 
+      {/* File upload alternative */}
       <label style={{
         display: "inline-block", marginTop: 14,
         fontSize: 12, color: "#6B644C",
         textDecoration: "underline", cursor: "pointer",
       }}>
-        Or upload a {isIdCard ? "photo of the ID card" : "face photo"} from file
-        <input type="file" accept="image/jpeg,image/png,image/webp"
+        Or upload {isIdCard ? "ID card photo" : "face photo"} from device
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
           style={{ display: "none" }}
-          onChange={e => { const f = e.target.files?.[0]; if (f) onCapture(f); }} />
+          onChange={e => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            const url = URL.createObjectURL(f);
+            setCapturedPreview(url);
+            if (isIdCard) {
+              setScanStatus("reading");
+              (async () => {
+                let extractedOcr = "";
+                try {
+                  const { default: Tesseract } = await import("tesseract.js");
+                  const ocrRes = await Promise.race([
+                    Tesseract.recognize(f, "eng"),
+                    new Promise(resolve => setTimeout(() => resolve(null), 6500)),
+                  ]);
+                  if (ocrRes?.data?.text) {
+                    extractedOcr = ocrRes.data.text;
+                  }
+                } catch {}
+                setScanStatus("verified");
+                setTimeout(() => {
+                  onCapture(f, identityInput, {
+                    idCardFile: f,
+                    cardPreview: url,
+                    ocrText: extractedOcr,
+                    identityInput,
+                  });
+                }, 300);
+              })();
+            } else {
+              setScanStatus("verified");
+              setTimeout(() => {
+                onCapture(f, "", {
+                  faceFile: f,
+                  facePreview: url,
+                });
+              }, 300);
+            }
+          }}
+        />
       </label>
 
       <style>{`
-        @keyframes flash { from { opacity:1; } to { opacity:0; } }
+        @keyframes scanBeam {
+          0% { top: 4%; }
+          100% { top: 92%; }
+        }
+        @keyframes flash {
+          from { opacity: 0.8; }
+          to { opacity: 0; }
+        }
       `}</style>
     </div>
-  );
-}
-
-function ModeTab({ active, onClick, icon, title, desc }) {
-  return (
-    <button onClick={onClick} style={{
-      flex: 1, padding: "14px 10px", borderRadius: 10, cursor: "pointer",
-      border: `2px solid ${active ? maroon : "#DDD0C4"}`,
-      background: active ? `${maroon}0D` : "#fff",
-      color: active ? maroonDark : "#7A5A60",
-      fontWeight: active ? 700 : 400,
-      textAlign: "center", transition: "all 0.18s",
-    }}>
-      <div style={{ fontSize: 28, marginBottom: 4 }}>{icon}</div>
-      <div style={{ fontSize: 13, fontWeight: 700 }}>{title}</div>
-      <div style={{ fontSize: 11, marginTop: 3, color: active ? maroon : "#9A8088", lineHeight: 1.4 }}>
-        {desc}
-      </div>
-    </button>
   );
 }
 
@@ -258,10 +691,13 @@ function ModeTab({ active, onClick, icon, title, desc }) {
    MAIN MEDICAL MODULE
 ═══════════════════════════════════════════════════════════ */
 export default function MedicalModule({ emergencyMode = false, onSuccess, onClose }) {
-  /* Common States */
-  const [mode, setMode]           = useState("idcard"); // "idcard" | "face"
-  const [stage, setStage]         = useState(emergencyMode ? "select" : "dashboard_calling");
-  const [error, setError]         = useState("");
+  /* Common States - TWO INDEPENDENT METHODS ONLY: "idcard" | "face" */
+  const [mode, setMode]                   = useState("idcard"); // "idcard" | "face"
+  const [stage, setStage]                 = useState(emergencyMode ? "select" : "dashboard_calling");
+  const [error, setError]                 = useState("");
+  const [notRegistered, setNotRegistered] = useState(false);
+  const [verifiedUser, setVerifiedUser]   = useState(null);
+  const [scanPreviews, setScanPreviews]   = useState({ card: null, face: null });
   
   /* Responder / Staff List States (For calling setup) */
   const [loadingStaff, setLoadingStaff] = useState(false);
@@ -289,10 +725,8 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
       const list = Array.isArray(data) ? data : (data.results ?? []);
       setStaffList(list);
       if (list.length > 0) {
-        // Default to the first medical representative on duty
         const active = list[0];
         setActiveStaff(active);
-        // Automatically dial on load ONLY inside dashboard calling setup
         if (!emergencyMode) {
           setDialTrigger(prev => prev + 1);
         }
@@ -309,36 +743,87 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
   }, [fetchOnDutyStaff]);
 
   /* ──────────────────────────────────────────────────────────
-     EMERGENCY VERIFICATION SCAN HANDLE (Login Page mode only)
+     EMERGENCY / SCANNER AUTHENTICATION
+     Two Completely Separate Endpoints:
+     METHOD 1: /api/emergency/verify-id-card/ (ID Card only)
+     METHOD 2: /api/emergency/verify-face/ (Face only)
   ────────────────────────────────────────────────────────── */
-  const handleCapture = async (file) => {
-    setStage("verifying");
+  const handleCapture = async (file, idNumberInput = "", scanData = null) => {
+    localStorage.removeItem("cems_access");
+    localStorage.removeItem("cems_refresh");
+
+    // Critical: Clear ANY previous verified identity before starting a new scan
+    setVerifiedUser(null);
     setError("");
+    setNotRegistered(false);
+
+    // Save preview for verification screen
+    if (scanData?.cardPreview || scanData?.facePreview) {
+      setScanPreviews({
+        card: scanData.cardPreview || null,
+        face: scanData.facePreview || null,
+      });
+    }
+
+    setStage("verifying");
 
     const body = new FormData();
-    let endpoint;
+    let endpoint = "";
 
     if (mode === "idcard") {
-      body.append("id_card_image", file);
-      endpoint = "/api/emergency/id-card-login/";
+      // METHOD 1: ID CARD SCANNER ONLY
+      endpoint = "/api/emergency/verify-id-card/";
+      const cardFile = scanData?.idCardFile || file;
+      if (cardFile) {
+        body.append("id_card_image", cardFile);
+      }
+      if (scanData?.ocrText) {
+        body.append("ocr_text", scanData.ocrText);
+      }
+      const rawInput = (scanData?.identityInput || idNumberInput || "").trim();
+      if (rawInput) {
+        if (rawInput.includes("@")) {
+          body.append("email", rawInput);
+        } else if (/^[A-Za-z]{2,5}-\d{4}-\d{4}$/i.test(rawInput)) {
+          body.append("id_year", rawInput);
+        } else {
+          body.append("name", rawInput);
+        }
+      }
     } else {
-      body.append("face_image", file);
-      endpoint = "/api/emergency/face-login/";
+      // METHOD 2: FACE SCANNER ONLY
+      endpoint = "/api/emergency/verify-face/";
+      const faceFile = scanData?.faceFile || file;
+      if (faceFile) {
+        body.append("face_image", faceFile);
+        body.append("image", faceFile);
+      }
     }
 
     try {
       const res  = await fetch(endpoint, { method: "POST", body });
       const data = await res.json();
-      if (!res.ok) {
-        setError(data.detail || "Identity verification failed.");
+      if (!res.ok || data.authenticated === false || (data.success === false && !data.verified)) {
+        setVerifiedUser(null);
+        localStorage.removeItem("cems_access");
+        localStorage.removeItem("cems_refresh");
+        setError(data.message || data.detail || "Identity verification failed.");
+        setNotRegistered(!!data.not_registered);
         setStage("failed");
         return;
       }
-      // Successful match! Immediately call parent handleEmergencySuccess
-      // This will set state, store tokens, and open the dashboard calling module.
-      onSuccess?.(data);
+      // Successful match! Store tokens and show verified screen with exact user info
+      if (data.access) localStorage.setItem("cems_access", data.access);
+      if (data.refresh) localStorage.setItem("cems_refresh", data.refresh);
+
+      setVerifiedUser(data);
+      setStage("success");
     } catch {
+      setVerifiedUser(null);
+      localStorage.removeItem("cems_access");
+      localStorage.removeItem("cems_refresh");
       setError("Cannot reach the server. Make sure Django is running on port 8000.");
+      setNotRegistered(false);
       setStage("failed");
     }
   };
@@ -351,71 +836,172 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
       return (
         <Card style={{ padding: "24px", background: "#FFFBFB", border: `2px solid ${brick}` }}>
           {/* Header */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, borderBottom: `2px solid ${line}`, paddingBottom: 10 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <span style={{ fontSize: 24 }}>🚨</span>
-              <span style={{ fontFamily: "Georgia, serif", fontSize: 18, fontWeight: 800, color: "#9E2A2B" }}>Emergency Help Desk</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18, borderBottom: `2px solid ${line}`, paddingBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 28 }}>🚨</span>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontFamily: "Georgia, serif", fontSize: 20, fontWeight: 900, color: "#9E2A2B", letterSpacing: "0.02em" }}>
+                  EMERGENCY SOS
+                </div>
+                <div style={{ fontSize: 12, color: "#6B644C", fontWeight: 600 }}>
+                  Verify your identity to continue
+                </div>
+              </div>
             </div>
             {onClose && (
-              <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 22, color: "#666", fontWeight: 700 }}>
+              <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 24, color: "#666", fontWeight: 700 }}>
                 &times;
               </button>
             )}
           </div>
 
-          {/* Section 1: Immediate Assistance Calling */}
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: "0 0 10px 0", fontSize: 12, fontWeight: 800, color: maroonDark, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+          {/* Verification Choice: TWO COMPLETELY SEPARATE METHODS */}
+          <div style={{ marginBottom: 20 }}>
+            <p style={{ fontSize: 13, color: "#475569", margin: "0 0 14px 0", fontWeight: 700, textAlign: "center" }}>
+              Choose a verification method:
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {/* Option 1: ID Card Scanner */}
+              <div
+                id="btn-scan-id-card"
+                onClick={() => {
+                  setVerifiedUser(null);
+                  setError("");
+                  setNotRegistered(false);
+                  setScanPreviews({ card: null, face: null });
+                  setMode("idcard");
+                  setStage("scanning");
+                }}
+                style={{
+                  background: "#FFFFFF",
+                  border: `2px solid ${gold}`,
+                  borderRadius: 12,
+                  padding: "18px 20px",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  transition: "all 0.18s ease-in-out",
+                  boxShadow: "0 3px 12px rgba(212,175,55,0.18)",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.borderColor = maroon;
+                  e.currentTarget.style.boxShadow = "0 6px 18px rgba(107,30,43,0.22)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.borderColor = gold;
+                  e.currentTarget.style.boxShadow = "0 3px 12px rgba(212,175,55,0.18)";
+                }}
+              >
+                <div style={{ fontSize: 32, marginBottom: 6 }}>🪪</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: maroonDark, marginBottom: 4 }}>
+                  [ Scan ID Card ]
+                </div>
+                <div style={{ fontSize: 12, color: "#6B644C", fontWeight: 600 }}>
+                  Use your physical college ID card
+                </div>
+              </div>
+
+              {/* OR Separator */}
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 12, margin: "4px 0"
+              }}>
+                <div style={{ flex: 1, height: 1, background: line }} />
+                <span style={{ fontSize: 12, fontWeight: 800, color: "#94A3B8", letterSpacing: "0.1em" }}>OR</span>
+                <div style={{ flex: 1, height: 1, background: line }} />
+              </div>
+
+              {/* Option 2: Face Scanner */}
+              <div
+                id="btn-scan-face"
+                onClick={() => {
+                  setVerifiedUser(null);
+                  setError("");
+                  setNotRegistered(false);
+                  setScanPreviews({ card: null, face: null });
+                  setMode("face");
+                  setStage("scanning");
+                }}
+                style={{
+                  background: "#FFFFFF",
+                  border: "2px solid #86EFAC",
+                  borderRadius: 12,
+                  padding: "18px 20px",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  transition: "all 0.18s ease-in-out",
+                  boxShadow: "0 3px 12px rgba(16,185,129,0.15)",
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.borderColor = "#16A34A";
+                  e.currentTarget.style.boxShadow = "0 6px 18px rgba(22,163,74,0.22)";
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.borderColor = "#86EFAC";
+                  e.currentTarget.style.boxShadow = "0 3px 12px rgba(16,185,129,0.15)";
+                }}
+              >
+                <div style={{ fontSize: 32, marginBottom: 6 }}>👤</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#166534", marginBottom: 4 }}>
+                  [ Scan Face ]
+                </div>
+                <div style={{ fontSize: 12, color: "#15803D", fontWeight: 600 }}>
+                  Use facial verification
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section: Immediate Assistance Calling (No Login Required) */}
+          <div style={{ borderTop: `1.5px solid ${line}`, paddingTop: 16 }}>
+            <h3 style={{ margin: "0 0 10px 0", fontSize: 11, fontWeight: 800, color: maroonDark, letterSpacing: "0.05em", textTransform: "uppercase", textAlign: "left" }}>
               📞 Immediate Assistance (No Login Required)
             </h3>
             {loadingStaff ? (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px", background: "rgba(0,0,0,0.02)", borderRadius: 8 }}>
-                <div style={{ width: 16, height: 16, border: "2px solid #ccc", borderTopColor: maroon, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
-                <span style={{ fontSize: 12, color: "#666" }}>Loading available representatives...</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px", background: "rgba(0,0,0,0.02)", borderRadius: 8 }}>
+                <div style={{ width: 14, height: 14, border: "2px solid #ccc", borderTopColor: maroon, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                <span style={{ fontSize: 11, color: "#666" }}>Loading available representatives...</span>
               </div>
             ) : staffList.length === 0 ? (
-              <div style={{ padding: "12px", background: "#FEF2F2", borderRadius: 8, fontSize: 12, color: brick, border: `1px dashed ${brick}` }}>
-                ⚠️ No medical staff on duty. Please use campus emergency services.
+              <div style={{ padding: "10px", background: "#FEF2F2", borderRadius: 8, fontSize: 11, color: brick, border: `1px dashed ${brick}` }}>
+                ⚠️ No medical staff on duty. Campus Security: 100 · Ambulance: 108
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                {staffList.map(s => (
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {staffList.slice(0, 2).map(s => (
                   <div key={s.id} style={{
                     background: "#fff", border: `1.5px solid ${line}`,
-                    borderRadius: 10, padding: "12px",
+                    borderRadius: 10, padding: "10px 12px",
                     display: "flex", justifyContent: "space-between", alignItems: "center",
                     boxShadow: "0 2px 6px rgba(0,0,0,0.03)"
                   }}>
-                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       {s.profile_image ? (
                         <img
                           src={s.profile_image.startsWith("http") ? s.profile_image : `http://127.0.0.1:8000${s.profile_image}`}
                           alt={s.name}
-                          style={{ width: 46, height: 46, borderRadius: "50%", objectFit: "cover", border: `2px solid ${gold}` }}
+                          style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: `2px solid ${gold}` }}
                         />
                       ) : (
-                        <div style={{ width: 46, height: 46, borderRadius: "50%", background: maroonSoft, display: "flex", alignItems: "center", justifyContent: "center", color: gold, fontWeight: 700, border: `2px solid ${gold}` }}>
+                        <div style={{ width: 40, height: 40, borderRadius: "50%", background: maroonSoft, display: "flex", alignItems: "center", justifyContent: "center", color: gold, fontWeight: 700, border: `2px solid ${gold}` }}>
                           {(s.name || "?")[0].toUpperCase()}
                         </div>
                       )}
                       <div style={{ textAlign: "left" }}>
-                        <div style={{ fontWeight: 800, fontSize: 14, color: maroonDark }}>{s.name}</div>
-                        <div style={{ fontSize: 11, color: "#6B644C", fontWeight: 600 }}>{s.designation}</div>
-                        {s.education && (
-                          <div style={{ fontSize: 10, color: "#9A8088", marginTop: 2 }}>
-                            🎓 {s.education}
-                          </div>
-                        )}
+                        <div style={{ fontWeight: 800, fontSize: 13, color: maroonDark }}>{s.name}</div>
+                        <div style={{ fontSize: 11, color: "#6B644C" }}>{s.designation} · {s.contact_number}</div>
                       </div>
                     </div>
                     <a href={`tel:${s.contact_number}`} style={{
                       display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      width: 38, height: 38, borderRadius: "50%", background: "#e53935",
+                      width: 36, height: 36, borderRadius: "50%", background: "#e53935",
                       color: "#fff", boxShadow: "0 3px 8px rgba(229,57,53,0.35)",
-                      textDecoration: "none", transition: "transform 0.15s",
+                      textDecoration: "none",
                     }}
-                    onMouseEnter={e => e.currentTarget.style.transform = "scale(1.1)"}
-                    onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
                     title={`Call ${s.name}`}
                     >
                       <PhoneIcon size={16} />
@@ -425,43 +1011,6 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
               </div>
             )}
           </div>
-
-          {/* Section 2: Scan & Authenticate Verification */}
-          <div style={{ borderTop: `1.5px solid ${line}`, paddingTop: 18 }}>
-            <h3 style={{ margin: "0 0 10px 0", fontSize: 12, fontWeight: 800, color: maroonDark, letterSpacing: "0.05em", textTransform: "uppercase" }}>
-              🔒 Scan to Authenticate &amp; Log In
-            </h3>
-            <p style={{ fontSize: 12, color: "#6B644C", margin: "0 0 14px 0", lineHeight: 1.4 }}>
-              Scan your physical ID card or verify your face to log in immediately and auto-access the calling dashboard.
-            </p>
-            <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
-              <ModeTab
-                active={mode === "idcard"}
-                onClick={() => { setMode("idcard"); setStage("scanning"); }}
-                icon="🪪"
-                title="ID Card Scan"
-                desc="Click to launch camera & scan ID"
-              />
-              <ModeTab
-                active={mode === "face"}
-                onClick={() => { setMode("face"); setStage("scanning"); }}
-                icon="🤳"
-                title="Face Scan"
-                desc="Click to launch camera & match face"
-              />
-            </div>
-            <button
-              onClick={() => setStage("scanning")}
-              style={{
-                width: "100%", padding: "13px", borderRadius: 8, border: "none",
-                background: `linear-gradient(135deg, ${maroon}, ${maroonSoft})`,
-                color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer",
-                boxShadow: "0 4px 16px rgba(107,30,43,0.3)",
-                transition: "all 0.2s",
-              }}>
-              {mode === "idcard" ? "📷 Start ID Card Camera Scan" : "🤳 Start Face Camera Scan"}
-            </button>
-          </div>
         </Card>
       );
     }
@@ -469,64 +1018,346 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
     if (stage === "scanning") {
       return (
         <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-            <Label>{mode === "idcard" ? "🪪 ID Card Scan" : "🤳 Face Scan"}</Label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={() => setStage("select")}
-                style={{ border: "none", background: "none", cursor: "pointer",
-                  fontSize: 12, color: "#9A7A58", textDecoration: "underline" }}>
-                ← Change method
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <Label>
+              {mode === "idcard" ? "🪪 College ID Card Scanner" : "👤 Face Verification Scanner"}
+            </Label>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setStage("select")}
+                style={{
+                  border: "none", background: "none", cursor: "pointer",
+                  fontSize: 12, color: maroon, fontWeight: 700, textDecoration: "underline"
+                }}
+              >
+                ← Change Method
               </button>
-              {onClose && <button onClick={onClose}
-                style={{ border: "none", background: "none", cursor: "pointer", fontSize: 20 }}>×</button>}
+              {onClose && (
+                <button onClick={onClose} style={{ border: "none", background: "none", cursor: "pointer", fontSize: 20 }}>
+                  &times;
+                </button>
+              )}
             </div>
           </div>
-          <CameraView mode={mode} onCapture={handleCapture} />
+          <CameraView mode={mode} onCapture={handleCapture} onCancel={() => setStage("select")} />
         </Card>
       );
     }
 
     if (stage === "verifying") {
+      const isCard = mode === "idcard";
       return (
-        <Card>
-          <Label>Verifying identity…</Label>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center",
-            padding: "30px 0", gap: 14 }}>
-            <div style={{ width: 44, height: 44, border: "4px solid #E8D0D4",
-              borderTopColor: maroon, borderRadius: "50%",
-              animation: "spin 0.8s linear infinite" }} />
-            <p style={{ fontSize: 13, color: "#6B644C", textAlign: "center" }}>
-              {mode === "idcard"
-                ? "Comparing physical card image with all registered ID cards…"
-                : "Analyzing live camera capture with registered face profile photo…"}
-            </p>
+        <Card style={{ padding: "26px", border: `2px solid ${isCard ? gold : "#10B981"}` }}>
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <div style={{
+              width: 52, height: 52, border: "4px solid #A7F3D0",
+              borderTopColor: isCard ? maroon : "#15803D", borderRadius: "50%",
+              animation: "spin 0.8s linear infinite", margin: "0 auto 12px"
+            }} />
+            <div style={{ fontSize: 18, fontWeight: 900, color: isCard ? maroonDark : "#166534" }}>
+              {isCard ? "Verifying ID Card..." : "Verifying Face..."}
+            </div>
+            <div style={{ fontSize: 12, color: "#6B644C", marginTop: 4 }}>
+              {isCard
+                ? "Reading card information and identifying registered account…"
+                : "Comparing live face against registered reference profile…"}
+            </div>
+          </div>
+
+          {/* Captured Preview */}
+          {((isCard && scanPreviews.card) || (!isCard && scanPreviews.face)) && (
+            <div style={{
+              display: "flex", justifyContent: "center", marginBottom: 18,
+              background: "#FAF9F6", padding: "12px", borderRadius: 10, border: `1px solid ${line}`
+            }}>
+              {isCard && scanPreviews.card && (
+                <div style={{ textAlign: "center" }}>
+                  <img
+                    src={scanPreviews.card}
+                    alt="Captured ID Card"
+                    style={{ width: 180, height: 114, objectFit: "cover", borderRadius: 8, border: `2px solid ${gold}` }}
+                  />
+                  <div style={{ fontSize: 11, fontWeight: 700, color: maroonDark, marginTop: 4 }}>
+                    Captured College ID Card
+                  </div>
+                </div>
+              )}
+              {!isCard && scanPreviews.face && (
+                <div style={{ textAlign: "center" }}>
+                  <img
+                    src={scanPreviews.face}
+                    alt="Captured Live Face"
+                    style={{ width: 100, height: 100, objectFit: "cover", borderRadius: "50%", border: "2px solid #10B981" }}
+                  />
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#166534", marginTop: 4 }}>
+                    Live Face Capture
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Status checklist */}
+          <div style={{
+            background: "#FFFFFF", border: "1.5px solid #E2E8F0",
+            borderRadius: 10, padding: "14px 16px", textAlign: "left", fontSize: 12, color: "#334155"
+          }}>
+            {isCard ? (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, color: "#166534", fontWeight: 700 }}>
+                  <span>✓</span> <span>Physical ID card detected</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, color: "#166534", fontWeight: 700 }}>
+                  <span>✓</span> <span>Card image captured &amp; quality verified</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, color: maroonDark, fontWeight: 700 }}>
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: "#F59E0B" }} />
+                  <span>OCR reading and registered account lookup…</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#64748B", fontWeight: 600 }}>
+                  <span>🔒</span> <span>Independent ID verification (ID Year treated as non-unique batch)</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, color: "#166534", fontWeight: 700 }}>
+                  <span>✓</span> <span>Live face detected</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, color: "#166534", fontWeight: 700 }}>
+                  <span>✓</span> <span>Single subject &amp; illumination confirmed</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, color: "#166534", fontWeight: 700 }}>
+                  <span style={{ display: "inline-block", width: 10, height: 10, borderRadius: "50%", background: "#10B981" }} />
+                  <span>Matching live face against registered reference biometrics…</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#64748B", fontWeight: 600 }}>
+                  <span>🔒</span> <span>Independent facial authentication (No ID card required)</span>
+                </div>
+              </>
+            )}
           </div>
           <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </Card>
       );
     }
 
-    if (stage === "failed") {
+    if (stage === "success") {
+      const isCard = verifiedUser?.verification_method === "id_card";
+      const responder = verifiedUser?.responder || (staffList.length > 0 ? staffList[0] : null);
       return (
-        <Card style={{ borderColor: brick }}>
-          <Label>Match failed</Label>
-          <div style={{
-            background: "#fff0f0", border: "1px solid #f5c6c6",
-            borderRadius: 8, padding: "14px 16px", marginBottom: 16,
-            fontSize: 13, color: "#b71c1c",
-          }}>⚠️ {error}</div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={() => setStage("scanning")} style={buttonStyle("primary")}>
-              Try Again
-            </button>
-            <button onClick={() => { setStage("select"); setError(""); }}
-              style={buttonStyle("secondary")}>
-              Change Method
+        <Card style={{ padding: "26px", background: "#F0FDF4", border: "2.5px solid #10B981" }}>
+          {/* Header */}
+          <div style={{ textAlign: "center", marginBottom: 18 }}>
+            <div style={{
+              width: 58, height: 58, borderRadius: "50%",
+              background: "#DCFCE7", border: "2px solid #10B981",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 10px", fontSize: 30, color: "#15803D"
+            }}>
+              ✓
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: "#166534" }}>
+              Identity Verified
+            </div>
+            <div style={{
+              display: "inline-block", marginTop: 6, padding: "4px 12px", borderRadius: 20,
+              background: isCard ? "#FEF3C7" : "#E0E7FF",
+              color: isCard ? "#92400E" : "#3730A3",
+              fontSize: 11, fontWeight: 800, letterSpacing: "0.03em"
+            }}>
+              {isCard ? "🪪 Verified via ID Card Scanner" : "👤 Verified via Face Scanner"}
+            </div>
+          </div>
+
+          {/* User Details Card */}
+          {verifiedUser && (
+            <div style={{
+              background: "#FFFFFF", border: "1.5px solid #86EFAC",
+              borderRadius: 12, padding: "16px", marginBottom: 16,
+              display: "flex", gap: 14, alignItems: "center",
+              boxShadow: "0 2px 8px rgba(22, 101, 52, 0.08)"
+            }}>
+              {verifiedUser.identity?.profile_image ? (
+                <img
+                  src={verifiedUser.identity.profile_image}
+                  alt={verifiedUser.full_name}
+                  style={{ width: 64, height: 64, borderRadius: "50%", objectFit: "cover", border: `2.5px solid ${gold}` }}
+                />
+              ) : (
+                <div style={{
+                  width: 64, height: 64, borderRadius: "50%", background: maroonSoft,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: gold, fontSize: 24, fontWeight: 800, border: `2.5px solid ${gold}`
+                }}>
+                  {(verifiedUser.full_name || verifiedUser.username || "?")[0].toUpperCase()}
+                </div>
+              )}
+              <div style={{ textAlign: "left", flex: 1 }}>
+                <div style={{ fontSize: 16, fontWeight: 800, color: maroonDark }}>
+                  {verifiedUser.full_name || verifiedUser.username}
+                </div>
+                <div style={{ fontSize: 12, color: "#475569", fontWeight: 600, marginTop: 2 }}>
+                  Role: <span style={{ textTransform: "capitalize", color: maroon }}>{verifiedUser.role || "Student"}</span>
+                  {verifiedUser.identity?.department && ` • ${verifiedUser.identity.department}`}
+                </div>
+                {verifiedUser.identity?.email && (
+                  <div style={{ fontSize: 11, color: "#64748B", marginTop: 2 }}>
+                    ✉️ {verifiedUser.identity.email}
+                  </div>
+                )}
+                {verifiedUser.identity?.id_year && (
+                  <div style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    marginTop: 6, padding: "3px 10px", borderRadius: 12,
+                    background: "#F0FDF4", border: "1px solid #86EFAC",
+                    fontSize: 11, fontWeight: 700, color: "#166534"
+                  }}>
+                    <span>🪪 ID Year (Batch):</span>
+                    <span>{verifiedUser.identity.id_year}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Assigned Medical Responder */}
+          {responder && (
+            <div style={{
+              background: "#FFFBEB", border: "1.5px solid #FCD34D",
+              borderRadius: 12, padding: "14px", marginBottom: 18,
+              display: "flex", justifyContent: "space-between", alignItems: "center"
+            }}>
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#92400E", letterSpacing: "0.04em", textTransform: "uppercase" }}>
+                  🚨 Assigned On-Duty Medical Representative
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: maroonDark, marginTop: 2 }}>
+                  {responder.name || responder.user?.get_full_name}
+                </div>
+                <div style={{ fontSize: 11, color: "#78350F" }}>
+                  {responder.designation || "Medical Officer"} • {responder.contact_number}
+                </div>
+              </div>
+              <a
+                href={`tel:${responder.contact_number}`}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "9px 16px", borderRadius: 8,
+                  background: "#DC2626", color: "#fff",
+                  textDecoration: "none", fontWeight: 800, fontSize: 13,
+                  boxShadow: "0 3px 8px rgba(220,38,38,0.3)"
+                }}
+              >
+                <PhoneIcon size={16} /> Call Responder
+              </a>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+            <button
+              onClick={() => {
+                if (verifiedUser && (verifiedUser.authenticated || verifiedUser.verified) && verifiedUser.user) {
+                  onSuccess?.(verifiedUser);
+                }
+              }}
+              style={{
+                flex: 1, padding: "12px 18px", borderRadius: 8, border: "none",
+                background: `linear-gradient(135deg, ${maroon}, ${maroonSoft})`,
+                color: "#fff", fontWeight: 800, fontSize: 14, cursor: "pointer",
+                boxShadow: "0 3px 10px rgba(107,30,43,0.3)"
+              }}
+            >
+              🚑 Access Emergency SOS / Medical Records
             </button>
             {onClose && (
-              <button onClick={onClose} style={buttonStyle("secondary")}>Close</button>
+              <button
+                onClick={onClose}
+                style={{
+                  padding: "12px 18px", borderRadius: 8,
+                  border: `1.5px solid ${gold}`, background: "transparent",
+                  color: maroonDark, fontWeight: 700, fontSize: 13, cursor: "pointer"
+                }}
+              >
+                Close
+              </button>
             )}
           </div>
+        </Card>
+      );
+    }
+
+    if (stage === "failed") {
+      return (
+        <Card style={{ borderColor: notRegistered ? "#8B1E3F" : brick }}>
+          <Label>{notRegistered ? "🚫 Not Registered" : "Verification Failed"}</Label>
+
+          {notRegistered ? (
+            /* ── NOT REGISTERED PANEL ── */
+            <div style={{ textAlign: "center", padding: "10px 0" }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🚫</div>
+              <div style={{ fontWeight: 800, fontSize: 16, color: "#581124", marginBottom: 10 }}>
+                {mode === "idcard" ? "ID Card Not Registered" : "Face Not Recognized"}
+              </div>
+              <div style={{
+                background: "#F5F3FF", border: "1.5px solid #A7F3D0",
+                borderRadius: 10, padding: "14px 16px", marginBottom: 16,
+                fontSize: 13, color: "#6E172C", lineHeight: 1.6, textAlign: "left",
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>ℹ️ What does this mean?</div>
+                <p style={{ margin: 0 }}>
+                  {mode === "idcard"
+                    ? "This physical ID card could not be matched to an active, approved student account in CEMS."
+                    : "The scanned face could not be matched to a registered user's profile photo in CEMS."}
+                </p>
+              </div>
+              <div style={{
+                background: "#FEF2F2", border: "1.5px solid #FECACA",
+                borderRadius: 10, padding: "14px 16px", marginBottom: 18,
+                fontSize: 13, color: "#991B1B", lineHeight: 1.6, textAlign: "left",
+              }}>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>🆘 Need emergency help right now?</div>
+                <p style={{ margin: 0 }}>
+                  Call campus emergency services directly:
+                  <br /><strong>Campus Security:</strong> 100<br />
+                  <strong>Medical Emergency:</strong> 108<br />
+                  <strong>Admin Office:</strong> Contact college administration
+                </p>
+              </div>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                <button onClick={() => { setVerifiedUser(null); setScanPreviews({ card: null, face: null }); setStage("scanning"); setError(""); setNotRegistered(false); }} style={buttonStyle("primary")}>
+                  🔄 Try Again
+                </button>
+                <button onClick={() => { setVerifiedUser(null); setScanPreviews({ card: null, face: null }); setStage("select"); setError(""); setNotRegistered(false); }}
+                  style={buttonStyle("secondary")}>
+                  ← Back to Methods
+                </button>
+                {onClose && <button onClick={onClose} style={buttonStyle("secondary")}>Close</button>}
+              </div>
+            </div>
+          ) : (
+            /* ── SCAN FAILED PANEL ── */
+            <div>
+              <div style={{
+                background: "#fff0f0", border: "1px solid #f5c6c6",
+                borderRadius: 8, padding: "14px 16px", marginBottom: 16,
+                fontSize: 13, color: "#b71c1c", lineHeight: 1.5,
+              }}>
+                <strong>⚠️ Verification issue:</strong><br />
+                {error || "Verification could not be completed."}
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                <button onClick={() => { setVerifiedUser(null); setScanPreviews({ card: null, face: null }); setStage("scanning"); setError(""); setNotRegistered(false); }} style={buttonStyle("primary")}>
+                  🔄 Try Again
+                </button>
+                <button onClick={() => { setVerifiedUser(null); setScanPreviews({ card: null, face: null }); setStage("select"); setError(""); setNotRegistered(false); }}
+                  style={buttonStyle("secondary")}>
+                  ← Choose Verification Method
+                </button>
+                {onClose && <button onClick={onClose} style={buttonStyle("secondary")}>Close</button>}
+              </div>
+            </div>
+          )}
         </Card>
       );
     }
@@ -599,7 +1430,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
       <Card>
         <Label>Loading Medical Module…</Label>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 0", gap: 14 }}>
-          <div style={{ width: 40, height: 40, border: "4px solid #E8D0D4",
+          <div style={{ width: 40, height: 40, border: "4px solid #A7F3D0",
             borderTopColor: maroon, borderRadius: "50%",
             animation: "spin 0.8s linear infinite" }} />
           <p style={{ fontSize: 13, color: "#8A5560" }}>Fetching on-duty medical representatives…</p>
@@ -984,7 +1815,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                   padding: "12px 14px", fontSize: 12, color: maroonDark,
                 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, marginBottom: 4 }}>
-                    <span>🆔 Card: {log.scanned_id_number || "Emergency Scan"}</span>
+                    <span>🆔 ID Year: {log.scanned_id_year || log.scanned_id_number || "Emergency Scan"}</span>
                     <span style={{ fontSize: 11, color: "#888", fontWeight: 400 }}>
                       {new Date(log.accessed_at).toLocaleString()}
                     </span>

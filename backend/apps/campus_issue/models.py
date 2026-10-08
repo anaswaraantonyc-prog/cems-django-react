@@ -17,6 +17,8 @@ class Complaint(models.Model):
     class Status(models.TextChoices):
         OPEN = 'OPEN', 'Open'
         IN_PROGRESS = 'IN_PROGRESS', 'In Progress'
+        ACCEPTED = 'ACCEPTED', 'Accepted'
+        REJECTED = 'REJECTED', 'Rejected'
         RESOLVED = 'RESOLVED', 'Resolved'
 
     submitted_by = models.ForeignKey(

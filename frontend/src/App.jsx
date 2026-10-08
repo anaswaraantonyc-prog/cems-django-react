@@ -21,7 +21,9 @@ import RegistrationModule from "./modules/RegistrationModule";
 import CanteenModule   from "./modules/CanteenModule";
 import WardenModule    from "./modules/WardenModule";
 import LostFoundModule from "./modules/LostFoundModule";
+import MyProfileModule from "./modules/MyProfileModule";
 import { Toast } from "./components/Shared";
+
 
 /* ── SVG Icons for sidebar modules ─────────────────────── */
 const ModuleIcon = ({ name, active }) => {
@@ -82,6 +84,11 @@ const ModuleIcon = ({ name, active }) => {
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
       </svg>
     ),
+    profile: (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+    ),
   };
   return icons[name] || null;
 };
@@ -99,7 +106,7 @@ const roleLabelsClean = {
 
 /* ── Main page header icon ─────────────────────────────── */
 const PageHeaderIcon = ({ name }) => {
-  const color = "#1D4ED8";
+  const color = "#8B1E3F";
   const icons = {
     booking: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -156,6 +163,11 @@ const PageHeaderIcon = ({ name }) => {
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
       </svg>
     ),
+    profile: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+    ),
   };
   return (
     <div style={{
@@ -171,6 +183,7 @@ const PageHeaderIcon = ({ name }) => {
 
 export default function App() {
   const [view, setView]               = useState("login");
+  const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
   const [accessToken, setAccessToken] = useState("");
   const [userName, setUserName]       = useState("");
   const [role, setRole]               = useState("student");
@@ -180,16 +193,60 @@ export default function App() {
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [lastSeenLostId, setLastSeenLostId] = useState(null);
 
+  const parseJwtPayload = (tokenStr) => {
+    try {
+      const parts = (tokenStr || "").split(".");
+      if (parts.length < 2) return null;
+      let base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
+      while (base64.length % 4) {
+        base64 += "=";
+      }
+      const binaryStr = atob(base64);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      return JSON.parse(new TextDecoder().decode(bytes));
+    } catch {
+      try {
+        return JSON.parse(atob((tokenStr || "").split(".")[1]));
+      } catch {
+        return null;
+      }
+    }
+  };
+
   /* ── after successful login: decode JWT role ── */
   const handleLoggedIn = (data, isEmergency = false) => {
-    const token = data.access || localStorage.getItem("cems_access") || "";
-    if (data.access) {
+    const token = data?.access || localStorage.getItem("cems_access") || "";
+    if (!token || typeof token !== "string" || !token.includes(".")) {
+      localStorage.removeItem("cems_access");
+      localStorage.removeItem("cems_refresh");
+      setAccessToken("");
+      setView("login");
+      return;
+    }
+
+    if (data?.access) {
       localStorage.setItem("cems_access", data.access);
     }
+    if (data?.refresh) {
+      localStorage.setItem("cems_refresh", data.refresh);
+    }
     setAccessToken(token);
+
     try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      const raw = (payload.role || "STUDENT").toLowerCase().replace(/_/g, "");
+      const payload = parseJwtPayload(token) || {};
+      // Check token expiration only if exp is present
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        localStorage.removeItem("cems_access");
+        localStorage.removeItem("cems_refresh");
+        setAccessToken("");
+        setView("login");
+        return;
+      }
+
+      const raw = (data?.role || payload.role || "STUDENT").toLowerCase().replace(/_/g, "");
       const map = {
         student: "student", classrep: "class_rep", class_rep: "class_rep",
         faculty: "faculty", principal: "principal", admin: "admin",
@@ -197,7 +254,7 @@ export default function App() {
         warden: "warden",
       };
       const resolvedRole = map[raw] || "student";
-      const resolvedName = payload.full_name || payload.username || (resolvedRole === "canteen" ? "Neethu" : "");
+      const resolvedName = data?.full_name || payload.full_name || data?.username || payload.username || (resolvedRole === "canteen" ? "Neethu" : "");
       setRole(resolvedRole);
       setUserName(resolvedName);
       if (isEmergency) {
@@ -205,16 +262,12 @@ export default function App() {
       } else {
         setActiveModule(modulesByRole[resolvedRole]?.[0] || "booking");
       }
+      setView("dashboard");
     } catch {
       setRole("student");
       setUserName("");
-      if (isEmergency) {
-        setActiveModule("medical");
-      } else {
-        setActiveModule(modulesByRole["student"][0]);
-      }
+      setView("dashboard");
     }
-    setView("dashboard");
   };
 
   // Restore session on reload
@@ -222,6 +275,8 @@ export default function App() {
     const token = localStorage.getItem("cems_access");
     if (token) {
       handleLoggedIn({ access: token });
+    } else {
+      setView("login");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -232,7 +287,7 @@ export default function App() {
     
     const checkLostItems = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/lostfound/items/?item_status=LOST", {
+        const res = await fetch("/api/lostfound/items/?item_status=LOST", {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
         if (res.ok) {
@@ -273,7 +328,10 @@ export default function App() {
   /* ── Sign out handler ── */
   const handleSignOut = () => {
     localStorage.removeItem("cems_access");
+    localStorage.removeItem("cems_refresh");
+    localStorage.removeItem("cems_shared_bookings");
     setAccessToken("");
+    setUserName("");
     setView("login");
   };
 
@@ -283,14 +341,23 @@ export default function App() {
   if (view === "login" || view === "register") {
     return (
       <div style={{ minHeight: "100vh", position: "relative" }}>
-        <Navbar view={view} onNav={setView} onEmergency={() => setView("login")} />
+        <Navbar
+          view={view}
+          onNav={(v) => { setView(v); setEmergencyModalOpen(false); }}
+          onEmergency={() => { setView("login"); setEmergencyModalOpen(true); }}
+        />
         {view === "login" && (
           <LoginPage
-            onGoRegister={() => setView("register")}
+            initialEmergency={emergencyModalOpen}
+            onGoRegister={() => { setView("register"); setEmergencyModalOpen(false); }}
             onLoggedIn={handleLoggedIn}
           />
         )}
-        {view === "register" && <RegisterPage onGoLogin={() => setView("login")} />}
+        {view === "register" && (
+          <RegisterPage
+            onGoLogin={() => { setView("login"); setEmergencyModalOpen(false); }}
+          />
+        )}
       </div>
     );
   }
@@ -301,26 +368,26 @@ export default function App() {
   return (
     <div style={{
       minHeight: "100vh", display: "flex", flexDirection: "column",
-      background: "#F8FAFC",
+      background: "#241836",
     }}>
       <Toast message={broadcastMessage} type="warning" visible={!!broadcastMessage} onClose={() => setBroadcastMessage("")} />
 
       {/* ── top navbar ── */}
       <header style={{
-        background: "linear-gradient(90deg, #0a192f 0%, #1c2541 100%)",
+        background: "linear-gradient(90deg, #581124 0%, #722F37 100%)",
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 24px", height: 60,
-        boxShadow: "0 4px 24px rgba(10, 25, 47, 0.2)",
+        boxShadow: "0 4px 24px rgba(88, 17, 36, 0.2)",
         position: "sticky", top: 0, zIndex: 20,
         borderBottom: "1px solid rgba(255,255,255,0.06)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
             width: 36, height: 36, borderRadius: 10,
-            background: "linear-gradient(135deg, #1d4ed8, #1e40af)",
+            background: "linear-gradient(135deg, #8B1E3F, #722F37)",
             display: "flex", alignItems: "center", justifyContent: "center",
             color: "#ffffff", fontWeight: 800, fontSize: 16,
-            boxShadow: "0 4px 14px rgba(29, 78, 216, 0.35)",
+            boxShadow: "0 4px 14px rgba(201, 107, 133, 0.5)",
           }}>
             C
           </div>
@@ -363,13 +430,13 @@ export default function App() {
                 outline: "none",
               }}
             >
-              <option value="canteen" style={{ background: "#0B132B", color: "#FFF" }}>Canteen Staff (Neethu)</option>
-              <option value="student" style={{ background: "#0B132B", color: "#FFF" }}>Student</option>
-              <option value="principal" style={{ background: "#0B132B", color: "#FFF" }}>Principal</option>
-              <option value="warden" style={{ background: "#0B132B", color: "#FFF" }}>Hostel Warden</option>
-              <option value="faculty" style={{ background: "#0B132B", color: "#FFF" }}>Faculty</option>
-              <option value="class_rep" style={{ background: "#0B132B", color: "#FFF" }}>Class Representative</option>
-              <option value="admin" style={{ background: "#0B132B", color: "#FFF" }}>Admin</option>
+              <option value="canteen" style={{ background: "#380A15", color: "#FFF" }}>Canteen Staff (Neethu)</option>
+              <option value="student" style={{ background: "#380A15", color: "#FFF" }}>Student</option>
+              <option value="principal" style={{ background: "#380A15", color: "#FFF" }}>Principal</option>
+              <option value="warden" style={{ background: "#380A15", color: "#FFF" }}>Hostel Warden</option>
+              <option value="faculty" style={{ background: "#380A15", color: "#FFF" }}>Faculty</option>
+              <option value="class_rep" style={{ background: "#380A15", color: "#FFF" }}>Class Representative</option>
+              <option value="admin" style={{ background: "#380A15", color: "#FFF" }}>Admin</option>
             </select>
           </div>
 
@@ -397,7 +464,7 @@ export default function App() {
 
         {/* ── sidebar ── */}
         <aside className="dashboard-sidebar" style={{
-          background: "linear-gradient(180deg, #0a192f 0%, #1c2541 100%)",
+          background: "linear-gradient(180deg, #581124 0%, #722F37 100%)",
           width: 240, flexShrink: 0, padding: "20px 14px",
           borderRight: "1px solid rgba(255,255,255,0.06)",
           display: "flex", flexDirection: "column", gap: 0,
@@ -422,7 +489,7 @@ export default function App() {
                     cursor: "pointer", fontSize: 13,
                     fontWeight: active ? 700 : 500,
                     background: active
-                      ? "rgba(29, 78, 216, 0.2)"
+                      ? "rgba(201, 107, 133, 0.2)"
                       : "transparent",
                     color: active ? "#FFFFFF" : "rgba(255,255,255,0.55)",
                     display: "flex", alignItems: "center", gap: 10,
@@ -437,20 +504,29 @@ export default function App() {
           </div>
 
           {/* bottom: signed in as */}
-          <div style={{
-            marginTop: "auto", paddingTop: 16,
-            borderTop: "1px solid rgba(255,255,255,0.06)",
-            paddingLeft: 12,
-          }}>
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 6, fontWeight: 600 }}>
-              Signed in as
+          <div
+            onClick={() => setActiveModule("profile")}
+            title="Click to view My Profile"
+            style={{
+              marginTop: "auto", paddingTop: 16,
+              borderTop: "1px solid rgba(255,255,255,0.06)",
+              paddingLeft: 12, paddingRight: 8, paddingBottom: 8,
+              cursor: "pointer", borderRadius: 10,
+              transition: "background 0.2s ease",
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+            onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+          >
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 6, fontWeight: 600, display: "flex", justifyContent: "space-between" }}>
+              <span>Signed in as</span>
+              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>View Profile →</span>
             </div>
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
             }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 8,
-                background: "linear-gradient(135deg, #1d4ed8, #1e40af)",
+                background: "linear-gradient(135deg, #8B1E3F, #722F37)",
                 display: "flex", alignItems: "center", justifyContent: "center",
                 color: "#FFFFFF", fontSize: 13, fontWeight: 700, flexShrink: 0,
               }}>
@@ -474,13 +550,13 @@ export default function App() {
         {/* ── main content ── */}
         <main className="dashboard-main" style={{
           flex: 1, padding: "28px 36px", overflowY: "auto",
-          background: "#F8FAFC",
+          background: "#F0FDF4",
         }}>
 
           {/* page header */}
           <div style={{
             marginBottom: 28, paddingBottom: 18,
-            borderBottom: "1.5px solid #E2E8F0",
+            borderBottom: "1.5px solid #A7F3D0",
             animation: "fadeIn 0.3s ease",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
@@ -488,11 +564,11 @@ export default function App() {
               <div>
                 <h1 style={{
                   margin: 0, fontSize: 22,
-                  fontWeight: 800, color: "#0A192F", letterSpacing: "-0.02em",
+                  fontWeight: 800, color: "#581124", letterSpacing: "-0.02em",
                 }}>
                   {moduleLabels[current]}
                 </h1>
-                <div style={{ fontSize: 13, color: "#64748B", marginTop: 3 }}>
+                <div style={{ fontSize: 13, color: "#065F46", marginTop: 3 }}>
                   {roleLabelsClean[role] || roles.find(r => r.id === role)?.label} dashboard
                 </div>
               </div>
@@ -502,7 +578,7 @@ export default function App() {
           {/* module content */}
           <div style={{ animation: "slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)" }}>
             {current === "register"  && <RegistrationModule />}
-            {current === "booking"   && <BookingModule role={role} />}
+            {current === "booking"   && <BookingModule role={role} userName={userName} />}
             {current === "refund"    && <RefundModule role={role} />}
             {current === "rebook"    && <RebookModule role={role} />}
             {current === "medical"   && <MedicalModule />}
@@ -512,9 +588,21 @@ export default function App() {
             {current === "access"    && <AccessModule accessToken={accessToken} />}
             {current === "canteen"   && <CanteenModule />}
             {current === "warden"    && <WardenModule />}
+            {current === "profile"   && (
+              <MyProfileModule
+                accessToken={accessToken}
+                onUserUpdated={(u) => {
+                  if (u) {
+                    const name = `${u.first_name || ""} ${u.last_name || ""}`.trim() || u.username;
+                    setUserName(name);
+                  }
+                }}
+              />
+            )}
           </div>
         </main>
       </div>
     </div>
   );
 }
+

@@ -11,10 +11,16 @@ def validate_phone_number(value):
         raise ValidationError('Enter a valid 10-digit phone number.')
 
 
-def validate_college_id_number(value):
+def validate_id_year(value):
+    if not value:
+        return
     value = str(value).strip().upper()
-    if not re.fullmatch(r'[A-Z0-9][A-Z0-9\-]{3,49}', value):
-        raise ValidationError('College ID number must contain 4-50 letters, numbers or hyphens.')
+    if not re.fullmatch(r'[A-Z0-9][A-Z0-9\-]{2,49}', value):
+        raise ValidationError('ID Year must contain 3-50 letters, numbers or hyphens (e.g. MCA-2025-2027).')
+
+
+# Backward compatibility alias
+validate_college_id_number = validate_id_year
 
 
 def validate_image_file(value):

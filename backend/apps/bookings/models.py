@@ -47,6 +47,13 @@ class Booking(models.Model):
 
     status = models.CharField(max_length=25, choices=Status.choices, default=Status.PENDING)
 
+    # Human-readable booking summary (hostel room / stay dates / mess food,
+    # canteen food list, etc.) and the structured canteen item quantities
+    # ({menu_item_id: qty}). Stored server-side so each user's history is
+    # served from the database, scoped to the owner.
+    details = models.TextField(blank=True, default='')
+    order_items = models.JSONField(blank=True, default=dict)
+
     # --- Cancellation & the Refund Description Box (SRS Module 3) ---
     cancelled_at = models.DateTimeField(null=True, blank=True)
     cancellation_reason = models.TextField(

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "../components/Shared";
 import { maroonDark, gold, sage, brick } from "../theme";
 
@@ -42,32 +42,67 @@ const INITIAL_HOSTEL_BOOKINGS = [
 const wardenStatusColor = (s) => {
   if (s === "APPROVED")  return { bg: "#F0FDF4", border: "#BBF7D0", text: "#15803D" };
   if (s === "REJECTED")  return { bg: "#FEF2F2", border: "#FECACA", text: "#B91C1C" };
-  if (s === "PENDING")   return { bg: "#F8FAFC", border: "#E2E8F0", text: "#1E40AF" };
+  if (s === "PENDING")   return { bg: "#F8FAFC", border: "#E2E8F0", text: "#722F37" };
   return { bg: "#F8FAFC", border: "#CBD5E1", text: "#334155" };
 };
 
 export default function WardenModule() {
-  const [bookings, setBookings] = useState(() => {
-    try {
-      const saved = localStorage.getItem("cems_shared_bookings");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const hostelBookings = parsed.filter(
-            (b) => b.venue && b.venue.toLowerCase().includes("hostel")
-          );
-          if (hostelBookings.length > 0) return hostelBookings;
-        }
-      }
-    } catch (e) {}
-    return INITIAL_HOSTEL_BOOKINGS;
-  });
+  const [bookings, setBookings] = useState(INITIAL_HOSTEL_BOOKINGS);
+
+  useEffect(() => {
+    const token = localStorage.getItem("cems_access");
+    if (token) {
+      fetch("/api/bookings/bookings/?booking_type=HOSTEL", {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!data) return;
+          const raw = Array.isArray(data) ? data : data.results || [];
+          if (raw.length > 0) {
+            const formatted = raw.map((b) => ({
+              id: `BK-${b.id}`,
+              title: b.title,
+              applicant: b.user_full_name || (typeof b.user === "string" ? b.user : "Student"),
+              applicantRole: b.user_role || "STUDENT",
+              date: b.event_datetime ? b.event_datetime.split("T")[0] : "2026-10-10",
+              roomType: b.room_type || "Hostel Room",
+              status: b.status || "CONFIRMED",
+              wardenStatus: b.status === "CONFIRMED" ? "APPROVED" : b.status === "CANCELLED" ? "REJECTED" : "PENDING",
+              paymentStatus: b.payment_status || "PAID",
+              paymentMethod: b.payment_method || "UPI",
+              paymentTxnId: b.payment_txn_id || `UPI-2026-${b.id}`,
+              paidAt: b.paid_at || (b.created_at ? b.created_at.split("T")[0] : "2026-10-01"),
+              details: b.details || "Hostel room booking",
+              amount: Number(b.amount) || 0,
+              submittedAt: b.created_at ? b.created_at.split("T")[0] : "2026-10-01",
+            }));
+            setBookings(formatted);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [expandedId, setExpandedId] = useState(null);
 
-  const updateWardenStatus = (id, newStatus) => {
+  const updateWardenStatus = async (id, newStatus) => {
+    const numericId = String(id).replace("BK-", "");
+    const token = localStorage.getItem("cems_access");
+    if (token && !isNaN(numericId)) {
+      try {
+        await fetch(`/api/bookings/bookings/${numericId}/`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ status: newStatus === "APPROVED" ? "CONFIRMED" : "CANCELLED" })
+        });
+      } catch (e) {}
+    }
     setBookings((prev) =>
       prev.map((b) =>
         b.id === id
@@ -99,7 +134,7 @@ export default function WardenModule() {
     <div style={{ maxWidth: 900, margin: "0 auto", paddingBottom: 40 }}>
       {/* ── Banner ── */}
       <div style={{
-        background: "linear-gradient(135deg, #1E3A5F 0%, #2563EB 60%, #3B82F6 100%)",
+        background: "linear-gradient(135deg, #1E3A5F 0%, #2563EB 60%, #059669 100%)",
         border: `1.5px solid ${gold}`, borderRadius: 14, padding: "20px 24px",
         marginBottom: 22, color: "#FFF", boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
       }}>
@@ -120,10 +155,10 @@ export default function WardenModule() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px,1fr))", gap: 12, marginBottom: 22 }}>
         {[
           { label: "Total Requests", value: stats.total,    color: maroonDark, icon: "📋" },
-          { label: "Pending",        value: stats.pending,  color: "#1E40AF",  icon: "⏳" },
+          { label: "Pending",        value: stats.pending,  color: "#722F37",  icon: "⏳" },
           { label: "Approved",       value: stats.approved, color: "#15803D",  icon: "✅" },
           { label: "Rejected",       value: stats.rejected, color: "#B91C1C",  icon: "❌" },
-          { label: "Revenue",        value: `₹${totalRevenue.toLocaleString()}`, color: "#1D4ED8", icon: "💰" },
+          { label: "Revenue",        value: `₹${totalRevenue.toLocaleString()}`, color: "#8B1E3F", icon: "💰" },
         ].map((st) => (
           <div key={st.label} style={{
             background: "#FFF", border: "1px solid #E2E8F0", borderRadius: 10,
@@ -205,10 +240,10 @@ export default function WardenModule() {
                     <span style={{ fontSize: 12, color: "#334155", fontWeight: 600 }}>
                       🛏️ {booking.roomType || "Room not specified"}
                     </span>
-                    <span style={{ fontSize: 12, color: "#1D4ED8", fontWeight: 700 }}>
+                    <span style={{ fontSize: 12, color: "#8B1E3F", fontWeight: 700 }}>
                       💰 ₹{(booking.amount || 0).toLocaleString()}
                     </span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: booking.paymentStatus === "PAID" ? "#15803D" : "#3B82F6" }}>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: booking.paymentStatus === "PAID" ? "#15803D" : "#059669" }}>
                       {booking.paymentStatus === "PAID" ? "✅ Paid" : booking.paymentStatus === "REFUNDED" ? "↩️ Refunded" : "⚠️ Unpaid"}
                     </span>
                     <span style={{ fontSize: 12, color: "#6B7280" }}>ID: {booking.id}</span>
@@ -242,7 +277,7 @@ export default function WardenModule() {
                       <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 14px" }}>
                         <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 4 }}>BOOKING FEE</div>
                         <div style={{ fontWeight: 900, fontSize: 18, color: "#15803D" }}>₹{(booking.amount || 0).toLocaleString()}</div>
-                        <div style={{ fontSize: 12, color: booking.paymentStatus === "PAID" ? "#15803D" : "#3B82F6", fontWeight: 600 }}>
+                        <div style={{ fontSize: 12, color: booking.paymentStatus === "PAID" ? "#15803D" : "#059669", fontWeight: 600 }}>
                           {booking.paymentStatus === "PAID" ? `✅ Paid via ${booking.paymentMethod}` : "⚠️ Payment Pending"}
                         </div>
                       </div>

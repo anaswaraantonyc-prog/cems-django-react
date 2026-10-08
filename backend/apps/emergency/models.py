@@ -19,12 +19,20 @@ class EmergencyAccessLog(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='emergency_logs')
     # Kept nullable so old databases can be migrated without losing old logs.
     scanned_qr_token = models.UUIDField(null=True, blank=True)
-    scanned_id_number = models.CharField(max_length=50, blank=True)
+    scanned_id_year = models.CharField(max_length=50, blank=True, verbose_name="Scanned ID Year")
     accessed_at = models.DateTimeField(auto_now_add=True)
     dispatched_staff = models.ForeignKey(
         MedicalStaff, null=True, blank=True, on_delete=models.SET_NULL, related_name='dispatch_logs',
     )
     notes = models.TextField(blank=True)
+
+    @property
+    def scanned_id_number(self):
+        return self.scanned_id_year
+
+    @scanned_id_number.setter
+    def scanned_id_number(self, value):
+        self.scanned_id_year = value
 
     class Meta:
         ordering = ['-accessed_at']

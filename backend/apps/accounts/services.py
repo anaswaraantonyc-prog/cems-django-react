@@ -10,10 +10,11 @@ def validate_user(admin_user, target_user):
     return target_user
 
 
-def issue_college_id(user, id_number):
+def issue_college_id(user, id_year=None, id_number=None):
     """Create/update the physical ID-card record used by image matching."""
+    val = id_year if id_year is not None else (id_number or '')
     college_id, _ = CollegeID.objects.update_or_create(
         user=user,
-        defaults={'id_number': id_number, 'is_active': True},
+        defaults={'id_year': val, 'is_active': True},
     )
     return college_id

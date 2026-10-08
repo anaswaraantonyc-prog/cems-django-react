@@ -1,53 +1,75 @@
 /* ===========================================================
-   CEMS THEME - Purple & Lavender System
+   CEMS THEME - Wine & Dusty Rose System
    Modern SaaS Redesign
    =========================================================== */
 
-/* --- Purple Palette (Mapped to legacy navyBlue variables) --- */
-export const navyBlue      = "#4C1D95";   // Deep Violet (Purple 900)
-export const navyBlueDark  = "#2E1065";   // Midnight Purple (Purple 950)
-export const navyBlueSoft  = "#6D28D9";   // Soft Deep Purple (Purple 700)
-export const navyBlueMid   = "#5B21B6";   // Mid Purple (Purple 800)
+/* --- Wine Palette --- */
+export const winePrimary   = "#581124";   // Deep Wine (Primary Header / Sidebar / Brand)
+export const wineDark      = "#380A15";   // Midnight Wine
+export const wineSoft      = "#722F37";   // Classic / Rich Wine
+export const wineMid       = "#6E172C";   // Mid Wine
+export const wineCrimson   = "#8B1E3F";   // Crimson Wine Accent
 
-/* --- Pure White Palette --- */
-export const pureWhite     = "#FFFFFF";   // Pure Crisp White
-export const offWhite      = "#FFFFFF";   // Pure White Background / Canvas
-export const offWhiteDim   = "#F5F3FF";   // Light Lavender Tint (Purple 50)
-export const cream         = "#EDE9FE";   // Lavender Accent (Purple 100)
+/* --- Dusty Rose Palette --- */
+export const dustyRoseAccent = "#059669"; // Vibrant Dusty Rose Accent
+export const dustyRoseSoft   = "#34D399"; // Soft Dusty Rose
+export const dustyRoseBorder = "#A7F3D0"; // Dusty Rose Border
+export const dustyRoseBg     = "#F0FDF4"; // Soft Dusty Rose Canvas Background
+export const dustyRoseCard   = "#FFFFFF"; // Dusty Rose Card Surface
+export const dustyRosePill   = "#D1FAE5"; // Dusty Rose Accent Pill
 
-/* --- Lavender/Purple Accents (Mapped to legacy royalBlue variables) --- */
-export const royalBlue     = "#8B5CF6";   // Lavender / Vibrant Purple (Purple 500)
-export const royalBlueDark = "#7C3AED";   // Deep Lavender (Purple 600)
+/* --- Aliases mapped to Wine & Dusty Rose tokens --- */
+export const lavender        = dustyRoseAccent;
+export const lavenderLight   = dustyRoseSoft;
+export const lavenderPale    = dustyRoseSoft;
+export const lavenderBorder  = dustyRoseBorder;
+export const lavenderBg      = dustyRoseBg;
+export const lavenderPill    = dustyRosePill;
+
+export const navyBlue      = winePrimary;
+export const navyBlueDark  = wineDark;
+export const navyBlueSoft  = wineSoft;
+export const navyBlueMid   = wineMid;
+
+/* --- Card & Canvas Palette --- */
+export const pureWhite     = dustyRoseCard;   // Dusty Rose Card Surface
+export const offWhite      = dustyRoseBg;     // Dusty Rose Canvas Background
+export const offWhiteDim   = dustyRoseBg;     // Dusty Rose Canvas
+export const cream         = dustyRosePill;   // Dusty Rose Accent Background
+
+/* --- Action / Accent Variables --- */
+export const royalBlue     = wineSoft;    // Rich Wine Primary
+export const royalBlueDark = winePrimary; // Deep Wine Secondary
 
 /* --- Emergency --- */
 export const emergencyRed  = "#DC2626";   // Vibrant Emergency Red
 
-/* --- Legacy Aliases mapped to Navy Blue & Pure White tokens --- */
-export const darkBlue      = navyBlue;
-export const darkBlueNavy  = navyBlueDark;
-export const darkBlueSoft  = navyBlueSoft;
-export const darkBlueMid   = navyBlueMid;
+/* --- Legacy Aliases --- */
+export const darkBlue      = winePrimary;
+export const darkBlueNavy  = wineDark;
+export const darkBlueSoft  = wineSoft;
+export const darkBlueMid   = wineMid;
 
-export const maroon        = royalBlue;     // Swapped to Purple
-export const maroonDark    = navyBlue;      // Swapped to Deep Purple
-export const maroonSoft    = "#A78BFA";     // Light Lavender (Purple 400)
-export const maroonMid     = royalBlueDark;
+export const maroon        = wineSoft;
+export const maroonDark    = winePrimary;
+export const maroonSoft    = dustyRoseSoft;
+export const maroonMid     = wineCrimson;
 
-export const brownDark     = navyBlue;
-export const brownMedium   = navyBlueSoft;
-export const brownSoft     = navyBlueMid;
-export const brownLight    = "#A78BFA";     // Lavender
-export const brownBorder   = "#DDD6FE";     // Purple 200
+export const brownDark     = winePrimary;
+export const brownMedium   = wineSoft;
+export const brownSoft     = wineMid;
+export const brownLight    = dustyRoseSoft;
+export const brownBorder   = dustyRoseBorder;
 
-export const ink           = navyBlue;
-export const inkSoft       = navyBlueDark;
+export const ink           = "#581124";   // Deep Wine Text
+export const inkSoft       = "#065F46";   // Muted Dusty Rose Gray Text
 export const parchment     = pureWhite;
 export const parchmentDim  = offWhiteDim;
-export const brass         = royalBlue;
-export const brassDark     = royalBlueDark;
+export const brass         = lavender;
+export const brassDark     = wineCrimson;
 export const sage          = "#16A34A";     // Green-500
 export const brick         = "#DC2626";     // Red-500
-export const gold          = royalBlue;
+export const gold          = lavender;
 export const goldLight     = offWhiteDim;
 export const line          = brownBorder;
 export const brown         = brownBorder;
@@ -57,25 +79,25 @@ export const brown         = brownBorder;
    =========================================================== */
 export const floralBackground = (bg = pureWhite) => {
   return {
-    backgroundColor: bg,
-    backgroundImage: `none`, // Removed radial gradient for cleaner look
+    backgroundColor: bg, color: "#581124",
+    backgroundImage: `none`,
   };
 };
 
 export const sidebarFloral = {
-  background: `linear-gradient(180deg, ${navyBlue} 0%, ${navyBlueSoft} 100%)`,
+  background: `linear-gradient(180deg, ${winePrimary} 0%, ${wineSoft} 100%)`,
   borderRight: "1px solid rgba(255,255,255,0.06)",
   boxShadow: "none",
 };
 
 export const mainFloral = {
-  background: offWhiteDim, // #F8FAFC
+  background: offWhiteDim, // #F0FDF4
 };
 
 export const cardFloral = {
   backgroundColor: pureWhite,
   border: `1px solid ${brownBorder}`,
-  boxShadow: "0 4px 16px rgba(10, 25, 47, 0.04)",
+  boxShadow: "0 4px 16px rgba(88, 17, 36, 0.06)",
   borderRadius: 16,
 };
 
@@ -90,8 +112,8 @@ export const maroonInputStyle = {
   borderRadius: 10,
   fontSize: 14,
   fontFamily: "var(--font-sans)",
-  background: pureWhite,
-  color: navyBlue,
+  background: "#FFFFFF",
+  color: "#581124",
   outline: "none",
   transition: "all 0.2s ease",
 };
@@ -104,8 +126,8 @@ export const inputStyle = {
   borderRadius: 10,
   fontSize: 14,
   fontFamily: "var(--font-sans)",
-  background: pureWhite,
-  color: navyBlue,
+  background: "#FFFFFF",
+  color: "#581124",
   outline: "none",
   transition: "all 0.2s ease",
 };
@@ -122,10 +144,10 @@ export const maroonButtonStyle = (kind = "primary") => ({
   cursor: "pointer",
   border: kind === "primary" ? "none" : `1px solid ${brownBorder}`,
   background: kind === "primary"
-    ? `linear-gradient(135deg, ${royalBlue}, ${royalBlueDark})`
+    ? `linear-gradient(135deg, ${wineSoft}, ${winePrimary})`
     : pureWhite,
-  color: kind === "primary" ? pureWhite : navyBlue,
-  boxShadow: kind === "primary" ? "0 4px 12px rgba(29, 78, 216, 0.2)" : "none",
+  color: kind === "primary" ? pureWhite : winePrimary,
+  boxShadow: kind === "primary" ? "0 4px 12px rgba(88, 17, 36, 0.35)" : "none",
   transition: "all 0.2s ease",
 });
 
@@ -138,10 +160,10 @@ export const buttonStyle = (kind = "primary") => ({
   cursor: "pointer",
   border: kind === "primary" ? "none" : `1px solid ${brownBorder}`,
   background: kind === "primary"
-    ? `linear-gradient(135deg, ${royalBlue}, ${royalBlueDark})`
+    ? `linear-gradient(135deg, ${wineSoft}, ${winePrimary})`
     : pureWhite,
-  color: kind === "primary" ? pureWhite : navyBlue,
-  boxShadow: kind === "primary" ? "0 4px 12px rgba(29, 78, 216, 0.2)" : "none",
+  color: kind === "primary" ? pureWhite : winePrimary,
+  boxShadow: kind === "primary" ? "0 4px 12px rgba(88, 17, 36, 0.35)" : "none",
   transition: "all 0.2s ease",
 });
 
@@ -187,13 +209,13 @@ export const roles = [
 ];
 
 export const modulesByRole = {
-  student:   ["booking", "refund", "rebook", "medical", "complaint", "lostfound"],
-  class_rep: ["booking", "refund", "rebook", "medical", "complaint", "lostfound"],
-  faculty:   ["booking", "refund", "rebook", "medical", "complaint", "lostfound"],
-  principal: ["booking", "refund", "complaint", "rebook", "lostfound"],
-  admin:     ["register", "lostfound"],
-  canteen:   ["canteen", "lostfound"],
-  warden:    ["warden", "lostfound"],
+  student:   ["booking", "refund", "rebook", "medical", "complaint", "lostfound", "profile"],
+  class_rep: ["booking", "refund", "rebook", "medical", "complaint", "lostfound", "profile"],
+  faculty:   ["booking", "refund", "rebook", "medical", "complaint", "lostfound", "profile"],
+  principal: ["booking", "refund", "complaint", "rebook", "lostfound", "profile"],
+  admin:     ["register", "booking", "access", "complaint", "lostfound", "profile"],
+  canteen:   ["canteen", "lostfound", "profile"],
+  warden:    ["warden", "lostfound", "profile"],
 };
 
 export const moduleLabels = {
@@ -208,6 +230,7 @@ export const moduleLabels = {
   canteen:  "Canteen Orders",
   warden:   "Hostel Warden",
   lostfound:"Lost & Found",
+  profile:  "My Profile",
 };
 
 export const moduleIcons = {
@@ -222,4 +245,6 @@ export const moduleIcons = {
   canteen:  "",
   warden:   "",
   lostfound:"",
+  profile:  "",
 };
+

@@ -13,7 +13,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = config('SECRET_KEY', default='insecure-dev-key')
 DEBUG = config('DEBUG', default=True, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,testserver', cast=Csv())
 
 # ---------------------------------------------------------------------------
 # APPLICATIONS
@@ -114,9 +114,11 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ---------------------------------------------------------------------------
-# DJANGO REST FRAMEWORK
-# ---------------------------------------------------------------------------
+AUTHENTICATION_BACKENDS = [
+    'apps.accounts.backends.EmailOrUsernameBackend',
+    'django.contrib.auth.backends.ModelBackend',
+]
+
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
@@ -144,8 +146,12 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
 
-CORS_ALLOW_ALL_ORIGINS = DEBUG
-CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', default='', cast=Csv())
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+]
 
 # ---------------------------------------------------------------------------
 # EMAIL (used by apps/notifications/email_service.py)
@@ -173,3 +179,17 @@ REFUND_POLICY_TIERS = [
 ]
 
 COMPLAINT_PRIORITY_CHOICES = ('HIGH', 'MEDIUM', 'LOW')
+
+# ---------------------------------------------------------------------------
+# BIOMETRIC FACE RECOGNITION (ArcFace / InsightFace)
+# ---------------------------------------------------------------------------
+# Cosine similarity threshold for normalized 512-D ArcFace embeddings.
+# In ArcFace:
+#   - Different identities typically yield cosine similarity in [-0.10, +0.35].
+#   - Same identity typically yields cosine similarity in [+0.55, +0.98].
+#   - Threshold 0.50 provides extremely low False Match Rate (< 0.001%)
+#     while allowing natural variations in lighting and minor angles.
+FACE_MATCH_THRESHOLD = config('FACE_MATCH_THRESHOLD', default=0.50, cast=float)
+FACE_RECOGNITION_THRESHOLD = config('FACE_RECOGNITION_THRESHOLD', default=FACE_MATCH_THRESHOLD, cast=float)
+FACE_MODEL_NAME = 'buffalo_sc'
+

@@ -5,6 +5,7 @@ PURPOSE: Serializers for payment capture and refund review, plus the
 """
 from rest_framework import serializers
 from .models import Payment, Refund
+from apps.bookings.models import Booking
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -18,10 +19,21 @@ class PaymentSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['status', 'created_at', 'updated_at']
 
+    def validate_booking(self, booking):
+        user = self.context['request'].user
+        if getattr(user, 'role', None) not in ['ADMIN', 'PRINCIPAL'] and booking.user_id != user.id:
+            raise serializers.ValidationError("You cannot make a payment for another student's booking.")
+        return booking
+
     def create(self, validated_data):
         validated_data['paid_by'] = self.context['request'].user
         validated_data['status'] = Payment.Status.SUCCESS  # assume gateway-confirmed for this API layer
-        return super().create(validated_data)
+        payment = super().create(validated_data)
+        booking = payment.booking
+        if booking.status == Booking.Status.PENDING:
+            booking.status = Booking.Status.CONFIRMED
+            booking.save(update_fields=['status'])
+        return payment
 
 
 class RefundSerializer(serializers.ModelSerializer):

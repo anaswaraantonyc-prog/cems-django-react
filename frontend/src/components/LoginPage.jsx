@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import MedicalModule from "../modules/MedicalModule";
 
 /* ════════════════════════════════════════════════════════════
@@ -48,7 +48,7 @@ function Input({ label, id, type = "text", value, onChange, onBlur,
     <div style={{ marginBottom: 18 }}>
       <label htmlFor={id} style={{
         display: "block", fontSize: 12, fontWeight: 700,
-        letterSpacing: "0.05em", color: "#334155", marginBottom: 6, textTransform: "uppercase"
+        letterSpacing: "0.05em", color: "#581124", marginBottom: 6, textTransform: "uppercase"
       }}>
         {label}
       </label>
@@ -58,11 +58,11 @@ function Input({ label, id, type = "text", value, onChange, onBlur,
           style={{
             width: "100%", boxSizing: "border-box",
             padding: rightSlot ? "12px 42px 12px 14px" : "12px 38px 12px 14px",
-            border: `1.5px solid ${bad ? "#ef4444" : ok ? "#22c55e" : "#cbd5e1"}`,
+            border: `1.5px solid ${bad ? "#ef4444" : ok ? "#22c55e" : "#A7F3D0"}`,
             borderRadius: 10, fontSize: 14,
             fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-            background: bad ? "#fef2f2" : ok ? "#f0fdf4" : "#f8fafc",
-            color: "#0f172a", outline: "none",
+            background: bad ? "#fef2f2" : ok ? "#F0FDF4" : "#FFFFFF",
+            color: "#581124", outline: "none",
             boxShadow: bad ? "0 0 0 3px rgba(239, 68, 68, 0.12)"
               : ok ? "0 0 0 3px rgba(34, 197, 94, 0.12)" : "none",
             transition: "all 0.2s ease",
@@ -92,15 +92,13 @@ function Input({ label, id, type = "text", value, onChange, onBlur,
 /* ════════════════════════════════════════════════════════════
    VALIDATION
 ════════════════════════════════════════════════════════════ */
-const USERNAME_RE = /^[A-Za-z0-9._]{4,150}$/;
 function validateField(key, value) {
   if (key === "username") {
-    if (!value.trim()) return "Username is required.";
-    if (!USERNAME_RE.test(value.trim())) return "4+ chars — letters, numbers, . or _ only.";
+    const val = (value || "").trim();
+    if (!val) return "Username or email is required.";
   }
   if (key === "password") {
     if (!value) return "Password is required.";
-    if (value.length < 8) return "At least 8 characters required.";
   }
   return null;
 }
@@ -122,7 +120,7 @@ function SosButton({ onClick }) {
         title="Medical Emergency: Click to scan ID card and auto-call responder"
         style={{
           width: 80, height: 80,
-          background: "#0A192F",
+          background: "#581124",
           border: "4px solid #ffffff",
           borderRadius: "50%",
           cursor: "pointer",
@@ -132,7 +130,7 @@ function SosButton({ onClick }) {
           alignItems: "center",
           justifyContent: "center",
           padding: "0",
-          boxShadow: "0 6px 20px rgba(10, 25, 47, 0.2)",
+          boxShadow: "0 6px 20px rgba(88, 17, 36, 0.35)",
         }}>
 
         <svg width="60" height="76" viewBox="0 -2 24 32" fill="none" style={{ marginTop: "4px" }}>
@@ -150,7 +148,7 @@ function SosButton({ onClick }) {
       <span style={{
         fontSize: 11,
         fontWeight: 700,
-        color: "#0a192f",
+        color: "#581124",
         letterSpacing: "0.04em",
         fontFamily: "'Sentient', serif",
       }}>
@@ -163,14 +161,20 @@ function SosButton({ onClick }) {
 /* ════════════════════════════════════════════════════════════
    MAIN LOGIN PAGE
 ════════════════════════════════════════════════════════════ */
-export default function LoginPage({ onGoRegister, onLoggedIn }) {
+export default function LoginPage({ onGoRegister, onLoggedIn, initialEmergency = false }) {
   const [form, setForm]       = useState({ username: "", password: "" });
   const [touched, setTouched] = useState({});
   const [errors, setErrors]   = useState({});
   const [showPwd, setShowPwd] = useState(false);
   const [apiError, setApiError]   = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [showEmergency, setShowEmergency] = useState(false);
+  const [showEmergency, setShowEmergency] = useState(initialEmergency);
+
+  useEffect(() => {
+    if (initialEmergency) {
+      setShowEmergency(true);
+    }
+  }, [initialEmergency]);
 
   const change = (key) => (e) => {
     const val = e.target.value;
@@ -222,6 +226,9 @@ export default function LoginPage({ onGoRegister, onLoggedIn }) {
   };
 
   const handleEmergencySuccess = (data) => {
+    if (!data || (!data.authenticated && !data.verified) || !data.user) {
+      return;
+    }
     if (data.access) {
       localStorage.setItem("cems_access",  data.access);
       localStorage.setItem("cems_refresh", data.refresh || "");
@@ -239,7 +246,7 @@ export default function LoginPage({ onGoRegister, onLoggedIn }) {
         padding: "40px 20px",
         display: "flex", justifyContent: "center", alignItems: "center",
         fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-        background: "radial-gradient(ellipse at top left, #ffffff 0%, #f1f5f9 60%, #e2e8f0 100%)",
+        background: "radial-gradient(ellipse at top left, #FFFFFF 0%, #F0FDF4 60%, #D1FAE5 100%)",
         position: "relative",
         boxSizing: "border-box",
         overflowX: "hidden",
@@ -255,41 +262,41 @@ export default function LoginPage({ onGoRegister, onLoggedIn }) {
 
           {/* ── login card (centered) ── */}
           <div style={{
-            background: "#ffffff",
-            border: "1px solid #cbd5e1",
+            background: "#FFFFFF",
+            border: "1px solid #A7F3D0",
             borderRadius: 20,
             padding: "42px 38px",
             width: 370,
-            boxShadow: "0 20px 50px rgba(10, 25, 47, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04)",
+            boxShadow: "0 20px 50px rgba(88, 17, 36, 0.12), 0 2px 8px rgba(201, 107, 133, 0.08)",
             zIndex: 2,
           }}>
             {/* logo */}
             <div style={{ textAlign: "center", marginBottom: 28 }}>
               <div style={{
                 width: 54, height: 54, borderRadius: 16, margin: "0 auto 14px",
-                background: "linear-gradient(135deg, #0a192f, #1e3a8a)",
+                background: "linear-gradient(135deg, #581124, #8B1E3F)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 6px 20px rgba(10, 25, 47, 0.35)",
+                boxShadow: "0 6px 20px rgba(88, 17, 36, 0.35)",
               }}>
                 <span style={{
                   color: "#ffffff", fontWeight: 800, fontSize: 24, letterSpacing: "-0.03em"
                 }}>C</span>
               </div>
               <div style={{
-                fontSize: 24, fontWeight: 800, color: "#0a192f", letterSpacing: "-0.02em"
+                fontSize: 24, fontWeight: 800, color: "#581124", letterSpacing: "-0.02em"
               }}>
                 Welcome back
               </div>
-              <div style={{ fontSize: 14, color: "#475569", marginTop: 4 }}>
+              <div style={{ fontSize: 14, color: "#065F46", marginTop: 4 }}>
                 Sign in to your CEMS account
               </div>
             </div>
 
             <form onSubmit={submit} noValidate>
-              <Input label="Username" id="login-username"
+              <Input label="Username or Email" id="login-username"
                 value={form.username} onChange={change("username")} onBlur={blur("username")}
                 error={errors.username} touched={touched.username}
-                autoComplete="username" placeholder="e.g. john.doe" />
+                autoComplete="username" placeholder="e.g. anaswara or anaswara@gmail.com" />
 
               <Input label="Password" id="login-password"
                 type={showPwd ? "text" : "password"}
@@ -320,21 +327,43 @@ export default function LoginPage({ onGoRegister, onLoggedIn }) {
                   width: "100%", padding: "13px", borderRadius: 10, border: "none",
                   background: submitting
                     ? "#94a3b8"
-                    : "linear-gradient(135deg, #0a192f, #1e3a8a)",
+                    : "linear-gradient(135deg, #581124, #8B1E3F)",
                   color: "#ffffff", fontSize: 15, fontWeight: 700,
                   cursor: submitting ? "not-allowed" : "pointer",
                   letterSpacing: "0.01em",
-                  boxShadow: submitting ? "none" : "0 4px 16px rgba(10, 25, 47, 0.3)",
+                  boxShadow: submitting ? "none" : "0 4px 16px rgba(88, 17, 36, 0.4)",
                   transition: "all 0.2s ease",
                 }}>
                 {submitting ? "Signing in…" : "Sign In"}
               </button>
+
+              <div style={{ display: "flex", alignItems: "center", margin: "16px 0 12px", gap: 10 }}>
+                <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
+                <span style={{ fontSize: 11, color: "#64748B", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>OR</span>
+                <div style={{ flex: 1, height: 1, background: "#E2E8F0" }} />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowEmergency(true)}
+                style={{
+                  width: "100%", padding: "11px", borderRadius: 10,
+                  border: "1.5px solid #A7F3D0",
+                  background: "#F0FDF4",
+                  color: "#065F46", fontSize: 13, fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  transition: "all 0.2s ease",
+                }}>
+                <span>📷</span>
+                <span>Scan to Sign In (Face / ID Card)</span>
+              </button>
             </form>
 
-            <div style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "#475569" }}>
+            <div style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "#065F46" }}>
               New here?{" "}
               <button onClick={onGoRegister}
-                style={{ background: "none", border: "none", color: "#1d4ed8",
+                style={{ background: "none", border: "none", color: "#8B1E3F",
                   fontWeight: 700, cursor: "pointer", padding: 0, fontSize: 13 }}>
                 Create an account
               </button>

@@ -3,7 +3,11 @@ from .models import MedicalStaff, EmergencyAccessLog
 
 
 class IDCardLoginSerializer(serializers.Serializer):
-    id_card_image = serializers.ImageField(required=True)
+    id_card_image = serializers.ImageField(required=False, allow_null=True)
+    id_year = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    id_number = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    email = serializers.CharField(required=False, allow_blank=True, max_length=254)
+    name = serializers.CharField(required=False, allow_blank=True, max_length=150)
 
 
 class MedicalStaffSerializer(serializers.ModelSerializer):
@@ -17,8 +21,9 @@ class MedicalStaffSerializer(serializers.ModelSerializer):
 
 class EmergencyAccessLogSerializer(serializers.ModelSerializer):
     user = serializers.StringRelatedField(read_only=True)
+    scanned_id_number = serializers.CharField(source='scanned_id_year', read_only=True)
 
     class Meta:
         model = EmergencyAccessLog
-        fields = ['id', 'user', 'scanned_id_number', 'accessed_at', 'dispatched_staff', 'notes']
+        fields = ['id', 'user', 'scanned_id_year', 'scanned_id_number', 'accessed_at', 'dispatched_staff', 'notes']
         read_only_fields = fields

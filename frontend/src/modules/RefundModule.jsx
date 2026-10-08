@@ -108,7 +108,7 @@ export default function RefundModule({ role = "student" }) {
     const token = localStorage.getItem("cems_access");
     const headers = token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : {};
 
-    fetch("http://localhost:8000/api/payments/refunds/", { headers })
+    fetch("/api/payments/refunds/", { headers })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (!data) return;
@@ -218,7 +218,7 @@ export default function RefundModule({ role = "student" }) {
       {isPrincipal ? (
         <div
           style={{
-            background: `linear-gradient(135deg, ${maroonDark} 0%, #0B132B 100%)`,
+            background: `linear-gradient(135deg, ${maroonDark} 0%, #380A15 100%)`,
             border: `1.5px solid ${gold}`,
             borderRadius: 12,
             padding: "16px 20px",

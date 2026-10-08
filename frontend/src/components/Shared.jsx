@@ -39,13 +39,14 @@ export function Card({ children, style, hover = false }) {
       onMouseLeave={hover ? () => setHovered(false) : undefined}
       style={{
         background: "#FFFFFF",
-        border: "1px solid #E2E8F0",
+        border: "1px solid #A7F3D0",
+        color: "#581124",
         borderRadius: 16,
         padding: "22px 24px",
         marginBottom: 16,
         boxShadow: hovered
-          ? "0 12px 40px rgba(10, 25, 47, 0.12)"
-          : "0 2px 12px rgba(10, 25, 47, 0.05)",
+          ? "0 12px 40px rgba(88, 17, 36, 0.12)"
+          : "0 2px 12px rgba(88, 17, 36, 0.05)",
         transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
         transform: hovered ? "translateY(-2px)" : "none",
         animation: "slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -64,7 +65,7 @@ export function Label({ children }) {
       fontSize: 11,
       letterSpacing: "0.06em",
       textTransform: "uppercase",
-      color: "#64748B",
+      color: "#065F46",
       marginBottom: 6,
       fontWeight: 700,
     }}>
@@ -104,10 +105,10 @@ export function SectionHeading({ children }) {
     <div style={{
       fontSize: 16,
       fontWeight: 700,
-      color: "#0A192F",
+      color: "#581124",
       marginBottom: 16,
       paddingBottom: 10,
-      borderBottom: "1.5px solid #E2E8F0",
+      borderBottom: "1.5px solid #A7F3D0",
       letterSpacing: "-0.01em",
     }}>
       {children}
@@ -123,7 +124,7 @@ export function StatusBadge({ status }) {
     PENDING:          { bg: "#FFFBEB", color: "#B45309", label: "Pending",           icon: "clock" },
     PENDING_APPROVAL: { bg: "#FFFBEB", color: "#B45309", label: "Pending Approval",  icon: "clock" },
     CANCELLED:        { bg: "#FEF2F2", color: "#B91C1C", label: "Cancelled",         icon: "x" },
-    REFUNDED:         { bg: "#EFF6FF", color: "#1D4ED8", label: "Refunded",          icon: "arrow" },
+    REFUNDED:         { bg: "#EFF6FF", color: "#8B1E3F", label: "Refunded",          icon: "arrow" },
     APPROVED:         { bg: "#F0FDF4", color: "#15803D", label: "Approved",          icon: "check" },
     REJECTED:         { bg: "#FEF2F2", color: "#B91C1C", label: "Rejected",          icon: "x" },
     PAID:             { bg: "#F0FDF4", color: "#15803D", label: "Paid",              icon: "check" },
@@ -198,7 +199,7 @@ export function Toast({ message, type = "success", visible, onClose }) {
   const colors = {
     success: { bg: "#F0FDF4", border: "#16A34A", color: "#15803D", icon: "check" },
     error:   { bg: "#FEF2F2", border: "#DC2626", color: "#B91C1C", icon: "x" },
-    info:    { bg: "#EFF6FF", border: "#3B82F6", color: "#1D4ED8", icon: "info" },
+    info:    { bg: "#EFF6FF", border: "#059669", color: "#8B1E3F", icon: "info" },
     warning: { bg: "#FFFBEB", border: "#F59E0B", color: "#B45309", icon: "warn" },
   };
   const c = colors[type] || colors.success;
@@ -216,7 +217,7 @@ export function Toast({ message, type = "success", visible, onClose }) {
       padding: "14px 20px",
       minWidth: 280,
       maxWidth: 400,
-      boxShadow: "0 12px 40px rgba(10, 25, 47, 0.15)",
+      boxShadow: "0 12px 40px rgba(88, 17, 36, 0.15)",
       animation: "toast-slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
       display: "flex",
       alignItems: "center",

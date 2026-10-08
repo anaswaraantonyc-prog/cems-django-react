@@ -5,16 +5,22 @@ PURPOSE: URL routes for registration, JWT login, profile, and Admin user
 """
 from django.urls import path
 from .views import (
-    RegisterView, CEMSTokenObtainPairView, MeView,
+    RegisterView, CEMSTokenObtainPairView, MeView, UserListView, UserDetailView,
     PendingUsersListView, ValidateUserView, RejectUserView, IssueCollegeIDView,
+    RegistrationHistoryListView,
 )
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', CEMSTokenObtainPairView.as_view(), name='login'),
     path('me/', MeView.as_view(), name='me'),
+    path('users/', UserListView.as_view(), name='user-list'),
+    path('users/<int:pk>/', UserDetailView.as_view(), name='user-detail'),
     path('pending/', PendingUsersListView.as_view(), name='pending-users'),
     path('pending/<int:pk>/validate/', ValidateUserView.as_view(), name='validate-user'),
     path('pending/<int:pk>/reject/', RejectUserView.as_view(), name='reject-user'),
     path('college-id/', IssueCollegeIDView.as_view(), name='issue-college-id'),
+    path('history/', RegistrationHistoryListView.as_view(), name='registration-history'),
 ]
+
+

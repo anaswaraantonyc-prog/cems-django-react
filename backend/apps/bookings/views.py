@@ -15,24 +15,29 @@ from .serializers import (
     RebookingRequestSerializer, RebookingReviewSerializer,
 )
 from .services import cancel_booking, request_rebooking, review_rebooking
-from .permissions import IsBookingOwnerOrReadOnlyAdmin, IsPrincipalForReview
+from .permissions import (
+    IsBookingOwnerOrReadOnlyAdmin, IsPrincipalForReview,
+    visible_bookings_for,
+)
 
 
 class BookingViewSet(viewsets.ModelViewSet):
     """
-    /api/bookings/bookings/            list (own) / create
+    /api/bookings/bookings/              list (strictly role/owner-scoped) / create
+    /api/bookings/bookings/{id}/         retrieve / update / delete (owner or admin)
     /api/bookings/bookings/{id}/cancel/  cancel with Refund Description Box
     """
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated, IsBookingOwnerOrReadOnlyAdmin]
     filterset_fields = ['booking_type', 'status', 'room_type']
-    search_fields = ['title']
+    search_fields = ['title', 'details']
 
     def get_queryset(self):
         user = self.request.user
-        if user.role in ['ADMIN', 'PRINCIPAL']:
-            return Booking.objects.all()
-        return Booking.objects.filter(user=user)
+        if not user or not user.is_authenticated:
+            return Booking.objects.none()
+        qs = Booking.objects.select_related('user').prefetch_related('payments', 'refunds')
+        return visible_bookings_for(user, qs).order_by('-created_at')
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
@@ -41,7 +46,7 @@ class BookingViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         booking, refund = cancel_booking(booking, request.user, serializer.validated_data['reason'])
         return Response({
-            'booking': BookingSerializer(booking).data,
+            'booking': BookingSerializer(booking, context={'request': request}).data,
             'refund_percentage': refund.refund_percentage,
             'refund_amount': str(refund.refund_amount),
         }, status=status.HTTP_200_OK)
@@ -59,9 +64,11 @@ class RebookingRequestViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         user = self.request.user
-        if user.role == 'PRINCIPAL' or user.role == 'ADMIN':
-            return RebookingRequest.objects.all()
-        return RebookingRequest.objects.filter(requested_by=user)
+        if not user or not user.is_authenticated:
+            return RebookingRequest.objects.none()
+        if user.role in ['PRINCIPAL', 'ADMIN']:
+            return RebookingRequest.objects.all().order_by('-created_at')
+        return RebookingRequest.objects.filter(requested_by=user).order_by('-created_at')
 
     def perform_create(self, serializer):
         booking = serializer.validated_data['original_booking']
@@ -81,4 +88,4 @@ class RebookingRequestViewSet(viewsets.ModelViewSet):
             serializer.validated_data['decision'],
             serializer.validated_data.get('remarks', ''),
         )
-        return Response(RebookingRequestSerializer(rebooking).data)
+        return Response(RebookingRequestSerializer(rebooking, context={'request': request}).data)

@@ -46,8 +46,8 @@ const RULES = {
     : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.trim()) ? "Enter a valid email address." : null,
   phone_number:v => !v.trim() ? "Phone number is required."
     : !/^\d{10}$/.test(v.trim()) ? "Enter exactly 10 digits (e.g. 9876543210)." : null,
-  id_number:   v => !v.trim() ? "ID card number is required."
-    : !/^[A-Za-z0-9\-]{4,50}$/.test(v.trim()) ? "4-50 letters, numbers or hyphens." : null,
+  id_year:     v => !v.trim() ? "ID Year is required."
+    : !/^[A-Za-z0-9\-]{3,50}$/.test(v.trim()) ? "3-50 letters, numbers or hyphens (e.g. MCA-2025-2027)." : null,
   password:    v => !v ? "Password is required."
     : v.length < 8 ? "At least 8 characters required."
     : !/[A-Za-z]/.test(v) ? "Must include at least one letter."
@@ -84,7 +84,7 @@ function Input({ label, id, type = "text", value, onChange, onBlur,
   return (
     <div style={{ marginBottom: 16 }}>
       <label htmlFor={id} style={{ display: "flex", alignItems: "center", gap: 4,
-        fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#334155",
+        fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#581124",
         textTransform: "uppercase", marginBottom: 6 }}>
         {label}
         {required && <span style={{ color: "#DC2626", fontSize: 13 }}>*</span>}
@@ -96,10 +96,10 @@ function Input({ label, id, type = "text", value, onChange, onBlur,
           style={{
             width: "100%", boxSizing: "border-box",
             padding: `12px ${rightSlot ? "42px" : "38px"} 12px 14px`,
-            border: `1.5px solid ${bad ? "#EF4444" : ok ? "#22C55E" : "#CBD5E1"}`,
+            border: `1.5px solid ${bad ? "#EF4444" : ok ? "#22C55E" : "#A7F3D0"}`,
             borderRadius: 10, fontSize: 14, fontFamily: "inherit",
-            background: bad ? "#FEF2F2" : ok ? "#F0FDF4" : "#F8FAFC",
-            color: "#0F172A", outline: "none",
+            background: bad ? "#FEF2F2" : ok ? "#F0FDF4" : "#FFFFFF",
+            color: "#581124", outline: "none",
             boxShadow: bad ? "0 0 0 3px rgba(239, 68, 68, 0.12)"
               : ok ? "0 0 0 3px rgba(34, 197, 94, 0.12)" : "none",
             transition: "all 0.2s ease",
@@ -149,7 +149,7 @@ function ImageUpload({ label, id, hint, file, onChange, error, touched }) {
       </label>
       <label htmlFor={id} onDragOver={e => e.preventDefault()} onDrop={drag}
         style={{ display: "flex", gap: 14, alignItems: "center", cursor: "pointer",
-          border: `2px dashed ${bad ? "#EF4444" : ok ? "#22C55E" : "#CBD5E1"}`,
+          border: `2px dashed ${bad ? "#EF4444" : ok ? "#22C55E" : "#A7F3D0"}`,
           borderRadius: 12, padding: 14,
           background: bad ? "#FEF2F2" : ok ? "#F0FDF4" : "#F8FAFC",
           transition: "all 0.2s ease" }}>
@@ -158,17 +158,17 @@ function ImageUpload({ label, id, hint, file, onChange, error, touched }) {
               objectFit: "cover", borderRadius: 8, border: `2px solid ${ok ? "#22C55E" : "#CBD5E1"}` }} />
           : <div style={{ width: 70, height: 70, display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center", gap: 4,
-              border: `1px solid #CBD5E1`, borderRadius: 8, color: "#64748B", background: "#FFFFFF" }}>
+              border: `1px solid #A7F3D0`, borderRadius: 8, color: "#065F46", background: "#FFFFFF" }}>
               <UploadIcon />
               <span style={{ fontSize: 10, textAlign:"center", fontWeight: 500 }}>Drag/Click</span>
             </div>
         }
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#0A192F" }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#581124" }}>
             {file ? file.name : "Choose a file"}
           </div>
           <div style={{ fontSize: 12, color: "#64748B", marginTop: 3 }}>{hint}</div>
-          {file && <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>
+          {file && <div style={{ fontSize: 12, color: "#065F46", marginTop: 2 }}>
             {(file.size / 1024).toFixed(0)} KB
           </div>}
         </div>
@@ -186,12 +186,13 @@ function ImageUpload({ label, id, hint, file, onChange, error, touched }) {
 function Section({ title, subtitle, children }) {
   return (
     <div className="animate-slide-up" style={{ marginBottom: 24, background: "#FFFFFF",
-      border: `1px solid #E2E8F0`,
+      border: `1px solid #A7F3D0`,
+      color: "#581124",
       borderRadius: 16, padding: "24px 28px",
-      boxShadow: "0 4px 16px rgba(10, 25, 47, 0.04)" }}>
-      <div style={{ marginBottom: 20, paddingBottom: 12, borderBottom: "1.5px solid #E2E8F0" }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#0A192F", letterSpacing: "-0.01em" }}>{title}</div>
-        {subtitle && <div style={{ fontSize: 13, color: "#64748B", marginTop: 2 }}>{subtitle}</div>}
+      boxShadow: "0 4px 16px rgba(88, 17, 36, 0.06)" }}>
+      <div style={{ marginBottom: 20, paddingBottom: 12, borderBottom: "1.5px solid #A7F3D0" }}>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#581124", letterSpacing: "-0.01em" }}>{title}</div>
+        {subtitle && <div style={{ fontSize: 13, color: "#065F46", marginTop: 2 }}>{subtitle}</div>}
       </div>
       {children}
     </div>
@@ -213,7 +214,7 @@ const ROLES = [
 ];
 
 const renderRoleIcon = (iconName, active) => {
-  const color = active ? "#1D4ED8" : "#64748B";
+  const color = active ? "#8B1E3F" : "#64748B";
   const props = { width: 22, height: 22, viewBox: "0 0 24 24", fill: "none", stroke: color, strokeWidth: 2, strokeLinecap: "round", strokeLinejoin: "round" };
   
   if (iconName === "svg-student") return <svg {...props}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>;
@@ -233,7 +234,7 @@ const renderRoleIcon = (iconName, active) => {
 const EMPTY = {
   username: "", email: "", first_name: "", last_name: "",
   password: "", password_confirm: "", role: "STUDENT",
-  phone_number: "", department: "", id_number: "",
+  phone_number: "", department: "", id_year: "",
   designation: "", education: "",
 };
 
@@ -324,6 +325,9 @@ export default function RegisterPage({ onGoLogin }) {
     // build FormData
     const body = new FormData();
     Object.entries(form).forEach(([k, v]) => body.append(k, typeof v === "string" ? v.trim() : v));
+    if (form.id_year) {
+      body.append("id_number", form.id_year.trim()); // backward compatibility alias
+    }
     body.append("profile_image", profileImage);
     body.append("id_card_image", idCardImage);
 
@@ -334,17 +338,49 @@ export default function RegisterPage({ onGoLogin }) {
       if (!res.ok) {
         const mapped = {};
         const summary = [];
+        let profileImgErr = null;
+        let idCardImgErr = null;
+
         Object.entries(data).forEach(([key, value]) => {
           const text = Array.isArray(value) ? value.join(" ") : String(value);
-          if (key in EMPTY || key === "profile_image" || key === "id_card_image") mapped[key] = text;
-          else summary.push(text);
+          if (key === "profile_image") {
+            profileImgErr = text;
+            summary.push(`Profile Photo: ${text}`);
+          } else if (key === "id_card_image") {
+            idCardImgErr = text;
+            summary.push(`ID Card: ${text}`);
+          } else if (key in EMPTY) {
+            mapped[key] = text;
+          } else {
+            summary.push(text);
+          }
         });
+
         setErrors(er => ({ ...er, ...mapped }));
-        setTouched(t => { const n = { ...t }; Object.keys(mapped).forEach(k => n[k] = true); return n; });
-        setResult({ ok: false, message: summary.join(" ") || "Registration failed. Please check the highlighted fields." });
+        setTouched(t => {
+          const n = { ...t };
+          Object.keys(mapped).forEach(k => n[k] = true);
+          return n;
+        });
+
+        if (profileImgErr) {
+          setImgErrors(ie => ({ ...ie, profileImage: profileImgErr }));
+          setImgTouched(it => ({ ...it, profileImage: true }));
+        }
+        if (idCardImgErr) {
+          setImgErrors(ie => ({ ...ie, idCardImage: idCardImgErr }));
+          setImgTouched(it => ({ ...it, idCardImage: true }));
+        }
+
+        const displayMessage = summary.join(" ") || "Registration failed. Please check the highlighted fields.";
+        setResult({ ok: false, message: displayMessage });
+        document.getElementById("reg-form-top")?.scrollIntoView({ behavior: "smooth" });
         return;
       }
-      setResult({ ok: true, message: "Registration submitted! Your account is pending Admin approval. You will receive access once the Admin approves your registration." });
+      setResult({
+        ok: true,
+        message: "Face registered successfully! Your account registration has been submitted and is pending Admin approval.",
+      });
       setForm(EMPTY);
       setProfileImage(null);
       setIdCardImage(null);
@@ -372,21 +408,21 @@ export default function RegisterPage({ onGoLogin }) {
       background: "var(--slate-50)",
       padding: "40px 20px",
       fontFamily: "var(--font-sans)",
-      backgroundImage: "radial-gradient(ellipse at top left, #FFFFFF 0%, #F8FAFC 60%, #E2E8F0 100%)",
+      backgroundImage: "radial-gradient(ellipse at top left, #FFFFFF 0%, #F0FDF4 60%, #D1FAE5 100%)",
     }}>
       <div style={{ maxWidth: 660, margin: "0 auto", animation: "fadeIn 0.3s ease" }}>
 
         {/* ── header ── */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ width: 56, height: 56, borderRadius: 16,
-            background: "linear-gradient(135deg, #0A192F, #1E3A8A)",
+            background: "linear-gradient(135deg, #581124, #722F37)",
             margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 6px 20px rgba(10, 25, 47, 0.3)" }}>
+            boxShadow: "0 6px 20px rgba(88, 17, 36, 0.35)" }}>
             <span style={{ color: "#FFFFFF", fontWeight: 800, fontSize: 24, letterSpacing: "-0.03em" }}>C</span>
           </div>
           <h1 style={{ margin: 0, fontSize: 28,
-            fontWeight: 800, color: "#0A192F", letterSpacing: "-0.02em" }}>Create your account</h1>
-          <p style={{ margin: "8px 0 0", fontSize: 14, color: "#64748B" }}>
+            fontWeight: 800, color: "#581124", letterSpacing: "-0.02em" }}>Create your account</h1>
+          <p style={{ margin: "8px 0 0", fontSize: 14, color: "#065F46" }}>
             Fill in all fields carefully. Your account will be reviewed by an Admin before activation.
           </p>
         </div>
@@ -396,13 +432,13 @@ export default function RegisterPage({ onGoLogin }) {
           <div style={{ display: "flex", justifyContent: "space-between",
             fontSize: 12, color: "#64748B", marginBottom: 8, fontWeight: 600 }}>
             <span>Form completion</span>
-            <span style={{ fontWeight: 800, color: progress === 100 ? "#16A34A" : "#1D4ED8" }}>{progress}%</span>
+            <span style={{ fontWeight: 800, color: progress === 100 ? "#16A34A" : "#8B1E3F" }}>{progress}%</span>
           </div>
           <div style={{ height: 6, background: "#E2E8F0", borderRadius: 99, overflow: "hidden" }}>
             <div style={{ height: "100%", borderRadius: 99, width: `${progress}%`,
               background: progress === 100
                 ? "linear-gradient(90deg, #16A34A, #22C55E)"
-                : "linear-gradient(90deg, #1D4ED8, #3B82F6)",
+                : "linear-gradient(90deg, #8B1E3F, #059669)",
               transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)" }} />
           </div>
         </div>
@@ -467,16 +503,16 @@ export default function RegisterPage({ onGoLogin }) {
                   return (
                     <button key={r.value} type="button" onClick={() => setForm(f => ({ ...f, role: r.value }))}
                       style={{ padding: "14px 10px", borderRadius: 12, cursor: "pointer",
-                        border: `1.5px solid ${active ? "#1D4ED8" : "#E2E8F0"}`,
+                        border: `1.5px solid ${active ? "#8B1E3F" : "#E2E8F0"}`,
                         background: active ? "#EFF6FF" : "#F8FAFC",
-                        color: active ? "#1E40AF" : "#475569",
+                        color: active ? "#722F37" : "#475569",
                         fontWeight: active ? 700 : 500,
                         fontSize: 13, transition: "all 0.2s ease", textAlign: "center",
                         display: "flex", flexDirection: "column", alignItems: "center", gap: 8,
-                        boxShadow: active ? "0 0 0 3px rgba(29, 78, 216, 0.1)" : "none" }}>
+                        boxShadow: active ? "0 0 0 3px rgba(201, 107, 133, 0.2)" : "none" }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", 
                         background: active ? "#FFFFFF" : "transparent", padding: 8, borderRadius: "50%",
-                        boxShadow: active ? "0 2px 8px rgba(29,78,216,0.15)" : "none" }}>
+                        boxShadow: active ? "0 2px 8px rgba(201,107,133,0.15)" : "none" }}>
                         {renderRoleIcon(r.icon, active)}
                       </div>
                       {r.label}
@@ -585,39 +621,69 @@ export default function RegisterPage({ onGoLogin }) {
           </Section>
 
           {/* ── SECTION 3: Identity ── */}
-          <Section title="Identity Verification" subtitle="Required for role validation and emergency access.">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
-              <ImageUpload label="Profile Photo" id="img-profile"
-                hint="Clear face photo · max 5 MB"
-                file={profileImage} onChange={changeImg("profileImage")}
-                error={imgErrors.profileImage} touched={imgTouched.profileImage} />
-              <ImageUpload label="College ID Card" id="img-idcard"
-                hint="Full front of ID · max 5 MB"
-                file={idCardImage} onChange={changeImg("idCardImage")}
-                error={imgErrors.idCardImage} touched={imgTouched.idCardImage} />
+          <Section
+            title="Biometric & Identity Verification"
+            subtitle="Upload a clear face photograph for Emergency SOS Face Recognition and college ID verification."
+          >
+            {/* Face guidance tips banner */}
+            <div style={{
+              background: "#F0FDF4", border: "1.5px solid #86EFAC",
+              borderRadius: 12, padding: "12px 16px", marginBottom: 18,
+              fontSize: 12, color: "#166534", lineHeight: 1.5,
+            }}>
+              <div style={{ fontWeight: 800, marginBottom: 4, display: "flex", alignItems: "center", gap: 6 }}>
+                <span>👤</span> <span>Face Recognition Photo Guidelines:</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 14px", marginTop: 4 }}>
+                <div>• Face must be clearly visible &amp; centered</div>
+                <div>• Exactly one person in the frame</div>
+                <div>• Avoid dark, blurry, or covered faces</div>
+                <div>• Used for Emergency SOS login</div>
+              </div>
             </div>
-            <Input label="ID Card Number" id="reg-idnumber" value={form.id_number}
-              onChange={change("id_number")} onBlur={blur("id_number")}
-              error={errors.id_number} touched={touched.id_number}
-              placeholder="e.g. CEMS-2026-0142"
-              hint="4-50 characters — letters, numbers, hyphens" />
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+              <ImageUpload
+                label="Profile Photo (Face Reference)"
+                id="img-profile"
+                hint="Clear, front-facing face photo · max 5 MB"
+                file={profileImage}
+                onChange={changeImg("profileImage")}
+                error={imgErrors.profileImage}
+                touched={imgTouched.profileImage}
+              />
+              <ImageUpload
+                label="College ID Card"
+                id="img-idcard"
+                hint="Full front of physical ID · max 5 MB"
+                file={idCardImage}
+                onChange={changeImg("idCardImage")}
+                error={imgErrors.idCardImage}
+                touched={imgTouched.idCardImage}
+              />
+            </div>
+            <Input label="ID Year" id="reg-idyear" value={form.id_year}
+              onChange={change("id_year")} onBlur={blur("id_year")}
+              error={errors.id_year} touched={touched.id_year}
+              placeholder="MCA-2025-2027"
+              hint="Enter the course and duration exactly as printed on your college ID card (e.g. MCA-2025-2027)." />
           </Section>
 
           {/* ── submit ── */}
           <button type="submit" disabled={submitting}
             style={{ width: "100%", padding: "16px", borderRadius: 12, border: "none",
-              background: submitting ? "#94A3B8" : "linear-gradient(135deg, #1D4ED8, #1E40AF)",
+              background: submitting ? "#94A3B8" : "linear-gradient(135deg, #8B1E3F, #722F37)",
               color: "#FFFFFF", fontSize: 16, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer",
-              letterSpacing: "0.01em", boxShadow: submitting ? "none" : "0 8px 24px rgba(29, 78, 216, 0.3)",
+              letterSpacing: "0.01em", boxShadow: submitting ? "none" : "0 8px 24px rgba(88, 17, 36, 0.4)",
               transition: "all 0.2s ease", marginBottom: 24, marginTop: 8 }}>
             {submitting ? "Submitting Registration…" : "Create Account"}
           </button>
         </form>
 
-        <div style={{ textAlign: "center", fontSize: 14, color: "#475569", paddingBottom: 40 }}>
+        <div style={{ textAlign: "center", fontSize: 14, color: "#065F46", paddingBottom: 40 }}>
           Already have an account?{" "}
           <button onClick={onGoLogin} style={{ background: "none", border: "none",
-            color: "#1D4ED8", fontWeight: 700, cursor: "pointer", padding: 0, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 4 }}>
+            color: "#8B1E3F", fontWeight: 700, cursor: "pointer", padding: 0, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 4 }}>
             Sign in
           </button>
         </div>

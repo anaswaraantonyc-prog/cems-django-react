@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { maroon, maroonDark, maroonSoft, gold, line } from "../theme";
+import UserProfileModal from "../components/UserProfileModal";
 
 /* ═══════════════════════════════════════════════════════════
    HELPERS
@@ -19,9 +20,9 @@ function authHeader() {
 const ROLE_COLOR = {
   STUDENT:              { bg: "#EBF5FF", color: "#1565C0", label: "Student" },
   FACULTY:              { bg: "#FFF3E0", color: "#E65100", label: "Faculty" },
-  CLASS_REP:            { bg: "#EFF6FF", color: "#1E40AF", label: "Class Rep" },
+  CLASS_REP:            { bg: "#EFF6FF", color: "#722F37", label: "Class Rep" },
   CANTEEN_STAFF:        { bg: "#DCFCE7", color: "#15803D", label: "Canteen Staff" },
-  WARDEN:               { bg: "#EDE9FE", color: "#5B21B6", label: "Hostel Warden" },
+  WARDEN:               { bg: "#D1FAE5", color: "#6E172C", label: "Hostel Warden" },
   EXTERNAL_PARTICIPANT: { bg: "#F3E5F5", color: "#6A1B9A", label: "External" },
   ADMIN:                { bg: "#FCE4EC", color: "#880E4F", label: "Admin" },
   PRINCIPAL:            { bg: "#E8F5E9", color: "#1B5E20", label: "Principal" },
@@ -180,93 +181,112 @@ function RoleBadge({ role }) {
 /* ═══════════════════════════════════════════════════════════
    MAIN COMPONENT
 ═══════════════════════════════════════════════════════════ */
+function formatDecisionDate(val) {
+  if (!val) return "N/A";
+  try {
+    const d = new Date(val);
+    if (isNaN(d.getTime())) return String(val);
+    return d.toLocaleString("en-US", {
+      year: "numeric", month: "short", day: "numeric",
+      hour: "2-digit", minute: "2-digit", hour12: true
+    });
+  } catch {
+    return String(val);
+  }
+}
+
 export default function RegistrationModule() {
-  const [users, setUsers]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState("");
-  const [busy, setBusy]       = useState({});
-  const [toast, setToast]     = useState(null);
-  const [activeTab, setActiveTab] = useState("pending"); // 'pending' | 'history'
+  const [users, setUsers]             = useState([]);
+  const [allUsers, setAllUsers]       = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [allUsersLoading, setAllUsersLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [error, setError]             = useState("");
+  const [busy, setBusy]               = useState({});
+  const [toast, setToast]             = useState(null);
+  const [activeTab, setActiveTab]     = useState("pending"); // 'pending' | 'all' | 'history'
   const [historyFilter, setHistoryFilter] = useState("ALL"); // 'ALL' | 'Accepted' | 'Rejected'
   const [historyQuery, setHistoryQuery]   = useState("");
+  const [allUsersQuery, setAllUsersQuery] = useState("");
+  const [allUsersRoleFilter, setAllUsersRoleFilter] = useState("ALL");
+  const [selectedUser, setSelectedUser]   = useState(null);
 
-  // History Log State for Accepted & Rejected Registrations
-  const [historyLogs, setHistoryLogs] = useState([
-    {
-      id: "HIS-101",
-      username: "neha.v",
-      first_name: "Neha",
-      last_name: "Verma",
-      email: "neha.v@college.edu",
-      role: "CLASS_REP",
-      department: "Information Technology",
-      id_number: "ID-2026-IT-012",
-      status: "Accepted",
-      decidedAt: "2026-09-06 11:30 AM",
-      notes: "Valid student ID card verified; approved as Class Rep.",
-    },
-    {
-      id: "HIS-102",
-      username: "karan.malhotra",
-      first_name: "Karan",
-      last_name: "Malhotra",
-      email: "karan.m@gmail.com",
-      role: "EXTERNAL_PARTICIPANT",
-      department: "Unknown",
-      id_number: "INVALID-99",
-      status: "Rejected",
-      decidedAt: "2026-09-05 04:15 PM",
-      notes: "Blurry ID card photo; rejected by admin audit.",
-    },
-    {
-      id: "HIS-103",
-      username: "ramesh.canteen",
-      first_name: "Ramesh",
-      last_name: "Kumar",
-      email: "ramesh.canteen@college.edu",
-      role: "CANTEEN_STAFF",
-      department: "Central Dining Services",
-      id_number: "STF-302",
-      status: "Accepted",
-      decidedAt: "2026-09-04 09:20 AM",
-      notes: "Staff identity confirmed by dining supervisor.",
-    },
-    {
-      id: "HIS-104",
-      username: "neethu",
-      first_name: "Neethu",
-      last_name: "Vasu",
-      email: "neethu@gmail.com",
-      role: "CANTEEN_STAFF",
-      department: "Central Dining & Canteen Operations",
-      id_number: "CEMS-CAN-002",
-      status: "Accepted",
-      decidedAt: "2026-09-08 12:10 PM",
-      notes: "Verified as Canteen Staff; authorized for food order approvals and menu management.",
-    },
-  ]);
+  // History Log State for Accepted & Rejected Registrations (loaded from backend)
+  const [historyLogs, setHistoryLogs] = useState([]);
 
   const showToast = (msg, ok = true) => {
     setToast({ msg, ok });
     setTimeout(() => setToast(null), 3500);
   };
 
+  const fetchAllUsers = useCallback(async () => {
+    setAllUsersLoading(true);
+    try {
+      const res = await fetch("/api/auth/users/", { headers: authHeader() });
+      if (res.ok) {
+        const data = await res.json();
+        setAllUsers(Array.isArray(data) ? data : (data.results ?? []));
+      }
+    } catch {
+    } finally {
+      setAllUsersLoading(false);
+    }
+  }, []);
+
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetch("/api/auth/history/", { headers: authHeader() });
+      if (res.ok) {
+        const data = await res.json();
+        setHistoryLogs(Array.isArray(data) ? data : (data.results ?? []));
+      }
+    } catch {
+      // Keep existing history if fetch fails
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, []);
+
   const load = useCallback(async () => {
     setLoading(true); setError("");
     try {
-      const res = await fetch("/api/auth/pending/", { headers: authHeader() });
-      if (res.status === 401 || res.status === 403) {
+      const [pendingRes, historyRes, allUsersRes] = await Promise.all([
+        fetch("/api/auth/pending/", { headers: authHeader() }),
+        fetch("/api/auth/history/", { headers: authHeader() }),
+        fetch("/api/auth/users/", { headers: authHeader() }),
+      ]);
+
+      if (pendingRes.status === 401 || pendingRes.status === 403) {
         setError("You must be logged in as Admin to view this page."); return;
       }
-      if (!res.ok) { setError("Failed to load pending registrations."); return; }
-      const data = await res.json();
-      setUsers(Array.isArray(data) ? data : (data.results ?? []));
+      if (!pendingRes.ok) { setError("Failed to load pending registrations."); return; }
+      const pData = await pendingRes.json();
+      setUsers(Array.isArray(pData) ? pData : (pData.results ?? []));
+
+      if (historyRes.ok) {
+        const hData = await historyRes.json();
+        setHistoryLogs(Array.isArray(hData) ? hData : (hData.results ?? []));
+      }
+
+      if (allUsersRes.ok) {
+        const aData = await allUsersRes.json();
+        setAllUsers(Array.isArray(aData) ? aData : (aData.results ?? []));
+      }
     } catch {
       setError("Could not reach the server. Make sure Django is running.");
     } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const handleUserUpdated = (updatedUser) => {
+    setSelectedUser(updatedUser);
+    setUsers((list) => list.map((u) => (u.id === updatedUser.id ? { ...u, ...updatedUser } : u)));
+    setAllUsers((list) => list.map((u) => (u.id === updatedUser.id ? { ...u, ...updatedUser } : u)));
+    showToast(`✅ Profile for ${updatedUser.username} updated.`);
+    fetchHistory();
+  };
 
   const accept = async (u) => {
     setBusy(b => ({ ...b, [u.id]: "accept" }));
@@ -276,27 +296,9 @@ export default function RegistrationModule() {
       });
       if (!res.ok) { showToast("Accept failed. Try again.", false); return; }
       
-      // Log to history
-      const now = new Date().toLocaleString();
-      setHistoryLogs(h => [
-        {
-          id: `HIS-${Date.now()}`,
-          username: u.username,
-          first_name: u.first_name,
-          last_name: u.last_name,
-          email: u.email,
-          role: u.role,
-          department: u.department,
-          id_number: u.college_id?.id_number || "Verified",
-          status: "Accepted",
-          decidedAt: now,
-          notes: "Approved by Admin; platform clearance issued.",
-        },
-        ...h,
-      ]);
-
       setUsers(list => list.filter(x => x.id !== u.id));
       showToast(`✅ ${u.username} approved — recorded in history.`);
+      fetchHistory();
     } catch { showToast("Network error. Try again.", false); }
     finally { setBusy(b => { const n = { ...b }; delete n[u.id]; return n; }); }
   };
@@ -310,27 +312,9 @@ export default function RegistrationModule() {
       });
       if (!res.ok) { showToast("Reject failed. Try again.", false); return; }
       
-      // Log to history
-      const now = new Date().toLocaleString();
-      setHistoryLogs(h => [
-        {
-          id: `HIS-${Date.now()}`,
-          username: u.username,
-          first_name: u.first_name,
-          last_name: u.last_name,
-          email: u.email,
-          role: u.role,
-          department: u.department,
-          id_number: u.college_id?.id_number || "Rejected",
-          status: "Rejected",
-          decidedAt: now,
-          notes: "Registration rejected and account removed by Admin.",
-        },
-        ...h,
-      ]);
-
       setUsers(list => list.filter(x => x.id !== u.id));
       showToast(`🗑️ ${u.username}'s registration rejected — recorded in history.`, false);
+      fetchHistory();
     } catch { showToast("Network error. Try again.", false); }
     finally { setBusy(b => { const n = { ...b }; delete n[u.id]; return n; }); }
   };
@@ -338,12 +322,14 @@ export default function RegistrationModule() {
   // Filtered history logs
   const filteredHistory = historyLogs.filter(h => {
     const matchStatus = historyFilter === "ALL" || h.status === historyFilter;
-    const q = historyQuery.toLowerCase();
+    const q = historyQuery.toLowerCase().trim();
     const matchQ = !q ||
-      h.username.toLowerCase().includes(q) ||
-      `${h.first_name} ${h.last_name}`.toLowerCase().includes(q) ||
+      (h.username || "").toLowerCase().includes(q) ||
+      `${h.first_name || ""} ${h.last_name || ""}`.toLowerCase().includes(q) ||
       (h.email || "").toLowerCase().includes(q) ||
-      (h.role || "").toLowerCase().includes(q);
+      (h.role || "").toLowerCase().includes(q) ||
+      (h.id_year || h.id_number || "").toLowerCase().includes(q) ||
+      (h.department || "").toLowerCase().includes(q);
     return matchStatus && matchQ;
   });
 
@@ -385,9 +371,9 @@ export default function RegistrationModule() {
         </button>
       </div>
 
-      {/* ── Navigation Tabs: Pending vs History ── */}
+      {/* ── Navigation Tabs: Pending vs All Users vs History ── */}
       <div style={{
-        display: "flex", gap: 10, marginBottom: 20, borderBottom: "2px solid #EDE0E3", paddingBottom: 8
+        display: "flex", gap: 10, marginBottom: 20, borderBottom: "2px solid #EDE0E3", paddingBottom: 8, flexWrap: "wrap"
       }}>
         <button
           onClick={() => setActiveTab("pending")}
@@ -408,6 +394,25 @@ export default function RegistrationModule() {
               {users.length}
             </span>
           )}
+        </button>
+
+        <button
+          onClick={() => { setActiveTab("all"); fetchAllUsers(); }}
+          style={{
+            padding: "9px 18px", borderRadius: 8, border: "none", cursor: "pointer",
+            fontWeight: 700, fontSize: 13,
+            background: activeTab === "all" ? maroonDark : "transparent",
+            color: activeTab === "all" ? "#FAF4ED" : maroonDark,
+            display: "flex", alignItems: "center", gap: 8, transition: "all 0.15s"
+          }}
+        >
+          <span>👥 All Registered Users</span>
+          <span style={{
+            background: "rgba(255,255,255,0.2)", color: activeTab === "all" ? "#FAF4ED" : maroonDark,
+            fontSize: 11, padding: "2px 7px", borderRadius: 10, fontWeight: 700, border: "1px solid #D9C8CC"
+          }}>
+            {allUsers.length}
+          </span>
         </button>
 
         <button
@@ -491,7 +496,7 @@ export default function RegistrationModule() {
                 const action = busy[u.id];
                 const profileSrc  = u.profile_image;
                 const idCardSrc   = u.college_id?.id_card_image;
-                const idNumber    = u.college_id?.id_number;
+                const idYear      = u.college_id?.id_year || u.college_id?.id_number;
 
                 return (
                   <div key={u.id} style={{
@@ -536,11 +541,11 @@ export default function RegistrationModule() {
                             }}
                           />
                         </div>
-                        {idNumber && (
-                          <div style={{ fontSize: 11, color: "#7A5A60", fontWeight: 600,
+                        {idYear && (
+                          <div style={{ fontSize: 11, color: "#065F46", fontWeight: 600,
                             background: "#f0e8ea", padding: "3px 10px",
                             borderRadius: 20, marginTop: 2 }}>
-                            🪪 {idNumber}
+                            🪪 ID Year: {idYear}
                           </div>
                         )}
                       </div>
@@ -554,7 +559,7 @@ export default function RegistrationModule() {
                           </span>
                           <RoleBadge role={u.role} />
                         </div>
-                        <div style={{ fontSize: 12, color: "#7A5A60", marginBottom: 10 }}>
+                        <div style={{ fontSize: 12, color: "#065F46", marginBottom: 10 }}>
                           @{u.username}
                         </div>
 
@@ -596,21 +601,32 @@ export default function RegistrationModule() {
 
                       {/* ── ACTIONS COLUMN ── */}
                       <div style={{
-                        display: "flex", flexDirection: "column", gap: 10,
+                        display: "flex", flexDirection: "column", gap: 8,
                         flexShrink: 0, justifyContent: "center",
                         minWidth: 130,
                       }}>
+                        <button
+                          onClick={() => setSelectedUser(u)}
+                          style={{
+                            padding: "8px 0", width: "100%",
+                            borderRadius: 8, border: `1.5px solid ${maroon}`,
+                            background: "#FFFFFF", color: maroonDark,
+                            fontWeight: 700, fontSize: 12, cursor: "pointer",
+                            transition: "all 0.2s",
+                          }}>
+                          👁 View Profile
+                        </button>
                         <button
                           onClick={() => accept(u)}
                           disabled={isBusy}
                           title="Approve this registration"
                           style={{
-                            padding: "10px 0", width: "100%",
+                            padding: "9px 0", width: "100%",
                             borderRadius: 8, border: "none",
                             background: (isBusy && action === "accept")
                               ? "#aaa"
                               : "linear-gradient(135deg, #2e7d52, #43a047)",
-                            color: "#fff", fontWeight: 700, fontSize: 13,
+                            color: "#fff", fontWeight: 700, fontSize: 12,
                             cursor: isBusy ? "not-allowed" : "pointer",
                             boxShadow: "0 3px 10px rgba(46,125,82,0.30)",
                             transition: "all 0.2s",
@@ -622,11 +638,11 @@ export default function RegistrationModule() {
                           disabled={isBusy}
                           title="Reject and delete this registration"
                           style={{
-                            padding: "10px 0", width: "100%",
+                            padding: "9px 0", width: "100%",
                             borderRadius: 8,
                             border: "1.5px solid #e57373",
                             background: (isBusy && action === "reject") ? "#aaa" : "#fff0f0",
-                            color: "#c62828", fontWeight: 700, fontSize: 13,
+                            color: "#c62828", fontWeight: 700, fontSize: 12,
                             cursor: isBusy ? "not-allowed" : "pointer",
                             transition: "all 0.2s",
                           }}>
@@ -703,14 +719,14 @@ export default function RegistrationModule() {
                         <span style={{ fontWeight: 700, fontSize: 16, color: maroonDark }}>
                           {item.first_name} {item.last_name}
                         </span>
-                        <span style={{ fontSize: 12, color: "#7A5A60", fontWeight: 600 }}>
+                        <span style={{ fontSize: 12, color: "#065F46", fontWeight: 600 }}>
                           (@{item.username})
                         </span>
                         <RoleBadge role={item.role} />
                       </div>
 
                       <div style={{ fontSize: 13, color: "#475569", marginTop: 6 }}>
-                        📧 {item.email} · Department: <strong>{item.department || "N/A"}</strong> · ID: <strong>{item.id_number}</strong>
+                        📧 {item.email} · Department: <strong>{item.department || "N/A"}</strong> · ID Year: <strong>{item.id_year || item.id_number}</strong>
                       </div>
 
                       <div style={{ fontSize: 12, color: "#78350F", marginTop: 6, fontStyle: "italic" }}>
@@ -728,7 +744,7 @@ export default function RegistrationModule() {
                         {isAccepted ? "✅ ACCEPTED & APPROVED" : "❌ REJECTED & DELETED"}
                       </span>
                       <div style={{ fontSize: 11, color: "#64748B", marginTop: 6, fontWeight: 500 }}>
-                        Decision Date: {item.decidedAt}
+                        Decision Date: {formatDecisionDate(item.decided_at || item.decidedAt)}
                       </div>
                     </div>
                   </div>
@@ -736,7 +752,14 @@ export default function RegistrationModule() {
               );
             })}
 
-            {filteredHistory.length === 0 && (
+            {historyLoading && (
+              <div style={{ textAlign: "center", padding: "30px", color: "#9A7A58" }}>
+                <div style={{ fontSize: 24, animation: "spin 1s linear infinite", display: "inline-block" }}>⏳</div>
+                <div style={{ fontSize: 13, fontWeight: 600, marginTop: 8 }}>Loading Decision History Logs…</div>
+              </div>
+            )}
+
+            {!historyLoading && filteredHistory.length === 0 && (
               <div style={{ textAlign: "center", padding: "40px", background: "#FAF4ED", borderRadius: 14, color: "#9A7A58" }}>
                 <div style={{ fontSize: 32 }}>📜</div>
                 <div style={{ fontWeight: 700, color: maroonDark, marginTop: 6 }}>No Decision Logs Found</div>
@@ -746,6 +769,183 @@ export default function RegistrationModule() {
           </div>
         </div>
       )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          ALL REGISTERED USERS TAB CONTENT
+         ═══════════════════════════════════════════════════════════ */}
+      {activeTab === "all" && (
+        <div>
+          {/* Search & Filter Bar */}
+          <div style={{
+            background: "#FFF", border: "1.5px solid #EDE0E3", borderRadius: 14,
+            padding: "14px 18px", marginBottom: 18, display: "flex",
+            justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12
+          }}>
+            <div>
+              <strong style={{ fontSize: 15, color: maroonDark }}>System User Profiles Directory</strong>
+              <div style={{ fontSize: 12, color: "#9A7A58" }}>
+                Total {allUsers.length} user records registered in system
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+              <input
+                placeholder="🔍 Search name, email, or username..."
+                value={allUsersQuery}
+                onChange={(e) => setAllUsersQuery(e.target.value)}
+                style={{
+                  padding: "8px 12px", borderRadius: 8, border: "1.5px solid #D9C8CC",
+                  fontSize: 13, outline: "none", width: 220
+                }}
+              />
+              <select
+                value={allUsersRoleFilter}
+                onChange={(e) => setAllUsersRoleFilter(e.target.value)}
+                style={{
+                  padding: "8px 12px", borderRadius: 8, border: "1.5px solid #D9C8CC",
+                  fontSize: 13, outline: "none", background: "#FFF", fontWeight: 600, color: maroonDark
+                }}
+              >
+                <option value="ALL">All Roles</option>
+                <option value="STUDENT">Student</option>
+                <option value="FACULTY">Faculty</option>
+                <option value="CLASS_REP">Class Rep</option>
+                <option value="PRINCIPAL">Principal</option>
+                <option value="ADMIN">Admin</option>
+                <option value="CANTEEN_STAFF">Canteen Staff</option>
+                <option value="WARDEN">Warden</option>
+                <option value="MEDICAL_STAFF">Medical Staff</option>
+                <option value="EXTERNAL_PARTICIPANT">External</option>
+              </select>
+            </div>
+          </div>
+
+          {/* User Cards / List */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {allUsers
+              .filter((u) => {
+                const matchRole = allUsersRoleFilter === "ALL" || u.role === allUsersRoleFilter;
+                const q = allUsersQuery.toLowerCase().trim();
+                const matchQ =
+                  !q ||
+                  (u.username || "").toLowerCase().includes(q) ||
+                  `${u.first_name || ""} ${u.last_name || ""}`.toLowerCase().includes(q) ||
+                  (u.email || "").toLowerCase().includes(q) ||
+                  (u.department || "").toLowerCase().includes(q) ||
+                  (u.college_id?.id_year || u.college_id?.id_number || "").toLowerCase().includes(q);
+                return matchRole && matchQ;
+              })
+              .map((u) => (
+                <div
+                  key={u.id}
+                  style={{
+                    background: "#FFF",
+                    border: "1.5px solid #EDE0E3",
+                    borderRadius: 14,
+                    padding: "16px 20px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
+                    flexWrap: "wrap",
+                    boxShadow: "0 2px 10px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  {/* Photo */}
+                  <ImgThumb
+                    src={u.profile_image}
+                    label={u.username}
+                    style={{ width: 50, height: 50, borderRadius: "50%" }}
+                  />
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <strong style={{ fontSize: 15, color: maroonDark }}>
+                        {u.first_name} {u.last_name}
+                      </strong>
+                      <span style={{ fontSize: 12, color: "#065F46" }}>@{u.username}</span>
+                      <RoleBadge role={u.role} />
+                    </div>
+
+                    <div style={{ fontSize: 12, color: "#475569", marginTop: 4 }}>
+                      📧 {u.email || "No email"} · 📱 {u.phone_number || "No phone"} · Dept: {u.department || "—"}
+                    </div>
+
+                    {(u.college_id?.id_year || u.college_id?.id_number) && (
+                      <div style={{ fontSize: 11, color: "#78350F", marginTop: 4, fontFamily: "monospace" }}>
+                        🪪 ID Year: {u.college_id.id_year || u.college_id.id_number}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Status Pills */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 4, alignItems: "flex-end" }}>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "2px 8px",
+                        borderRadius: 12,
+                        background: u.is_validated ? "#D1FAE5" : "#FEF3C7",
+                        color: u.is_validated ? "#047857" : "#B45309",
+                      }}
+                    >
+                      {u.is_validated ? "Validated" : "Pending"}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        padding: "2px 8px",
+                        borderRadius: 12,
+                        background: u.is_active ? "#ECFDF5" : "#FEE2E2",
+                        color: u.is_active ? "#15803D" : "#B91C1C",
+                      }}
+                    >
+                      {u.is_active ? "Active" : "Inactive"}
+                    </span>
+                  </div>
+
+                  {/* Actions */}
+                  <div>
+                    <button
+                      onClick={() => setSelectedUser(u)}
+                      style={{
+                        padding: "8px 16px",
+                        borderRadius: 8,
+                        border: `1.5px solid ${maroon}`,
+                        background: `linear-gradient(135deg, ${maroon}, ${maroonSoft})`,
+                        color: "#FFF",
+                        fontWeight: 700,
+                        fontSize: 12,
+                        cursor: "pointer",
+                        boxShadow: "0 2px 8px rgba(107,30,43,0.2)",
+                        transition: "all 0.2s",
+                      }}
+                    >
+                      👁 View & Edit Profile
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+            {allUsersLoading && (
+              <div style={{ textAlign: "center", padding: 30, color: "#9A7A58" }}>
+                Loading system users...
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Profile View & Edit Modal */}
+      <UserProfileModal
+        user={selectedUser}
+        isOpen={!!selectedUser}
+        onClose={() => setSelectedUser(null)}
+        onUserUpdated={handleUserUpdated}
+        canEdit={true}
+      />
 
       <style>{`
         @keyframes shimmer {

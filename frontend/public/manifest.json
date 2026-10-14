@@ -1,0 +1,87 @@
+{
+  "id": "cems-campus-emergency-pwa",
+  "name": "CEMS — MACFAST Campus Event & Emergency System",
+  "short_name": "CEMS MACFAST",
+  "description": "MACFAST College Event Management System with 1-Tap Emergency SOS & Panic Siren Alarm for mobile phones and campus safety.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui", "window-controls-overlay"],
+  "orientation": "portrait-primary",
+  "background_color": "#F0FDF4",
+  "theme_color": "#059669",
+  "categories": ["education", "utilities", "lifestyle"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/cems-logo.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "🚨 Emergency Siren Alarm",
+      "short_name": "Siren Alarm",
+      "description": "Trigger instant campus panic siren alarm and audio beacon",
+      "url": "/?action=siren",
+      "icons": [
+        {
+          "src": "/icons/shortcut-siren.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "🆘 Emergency SOS Assistance",
+      "short_name": "Medical SOS",
+      "description": "Rapid medical assistance, scan ID card, and responder alert",
+      "url": "/?action=sos",
+      "icons": [
+        {
+          "src": "/icons/shortcut-sos.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "📅 Campus Event Bookings",
+      "short_name": "Bookings",
+      "description": "View auditorium, hostel, and canteen food reservations",
+      "url": "/?action=bookings",
+      "icons": [
+        {
+          "src": "/icons/shortcut-booking.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+}

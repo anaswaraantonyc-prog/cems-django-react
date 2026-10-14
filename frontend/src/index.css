@@ -5,19 +5,19 @@
 
 /* ── CSS Custom Properties ─────────────────────────────── */
 :root {
-  /* Wine Palette */
-  --wine-900: #581124;
-  --wine-800: #380A15;
-  --wine-700: #722F37;
-  --wine-600: #6E172C;
-  --wine-500: #8B1E3F;
+  /* Light Green & Emerald Palette */
+  --wine-900: #065F46;
+  --wine-800: #064E3B;
+  --wine-700: #047857;
+  --wine-600: #059669;
+  --wine-500: #10B981;
 
-  --navy-900: #581124;
-  --navy-800: #380A15;
-  --navy-700: #722F37;
-  --navy-600: #6E172C;
+  --navy-900: #065F46;
+  --navy-800: #064E3B;
+  --navy-700: #047857;
+  --navy-600: #059669;
 
-  /* Lavender Palette */
+  /* Light Green Palette */
   --white: #FFFFFF;
   --lavender-50: #F0FDF4;
   --lavender-100: #D1FAE5;
@@ -104,8 +104,8 @@ html {
 
 body {
   font-family: var(--font-sans);
-  color: #581124;
-  background: var(--slate-50);
+  color: #064E3B;
+  background: #F0FDF4;
   line-height: 1.6;
   min-height: 100vh;
 }
@@ -134,8 +134,8 @@ body {
 
 /* ── Selection ─────────────────────────────────────────── */
 ::selection {
-  background: rgba(201, 107, 133, 0.25);
-  color: #581124;
+  background: rgba(16, 185, 129, 0.25);
+  color: #064E3B;
 }
 
 /* ── Local Fonts ───────────────────────────────────────── */
@@ -191,11 +191,16 @@ body {
   100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
 }
 
-/* ── SOS Animations ────────────────────────────────────── */
-@keyframes sos-pulse {
-  0%   { box-shadow: 0 0 0 0 rgba(88, 17, 36, 0.4), 0 6px 20px rgba(88, 17, 36, 0.4); }
-  50%  { box-shadow: 0 0 0 16px rgba(88, 17, 36, 0), 0 6px 20px rgba(88, 17, 36, 0.4); }
-  100% { box-shadow: 0 0 0 0 rgba(88, 17, 36, 0.4), 0 6px 20px rgba(88, 17, 36, 0.4); }
+/* ── SOS & Siren Animations ────────────────────────────── */
+@keyframes sos-pulse-green {
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5), 0 6px 20px rgba(5, 150, 105, 0.35); }
+  50%  { box-shadow: 0 0 0 16px rgba(16, 185, 129, 0), 0 6px 20px rgba(5, 150, 105, 0.35); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5), 0 6px 20px rgba(5, 150, 105, 0.35); }
+}
+@keyframes siren-pulse-red {
+  0%   { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55), 0 6px 20px rgba(220, 38, 38, 0.4); }
+  50%  { box-shadow: 0 0 0 16px rgba(220, 38, 38, 0), 0 6px 20px rgba(220, 38, 38, 0.4); }
+  100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.55), 0 6px 20px rgba(220, 38, 38, 0.4); }
 }
 @keyframes sos-blink {
   0%, 100% { opacity: 1; }
@@ -203,7 +208,11 @@ body {
 }
 
 .sos-btn {
-  animation: sos-pulse 2s ease-in-out infinite;
+  animation: sos-pulse-green 2s ease-in-out infinite;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.sos-btn-siren {
+  animation: siren-pulse-red 1.6s ease-in-out infinite;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 .sos-waves {
@@ -214,6 +223,41 @@ body {
 }
 .sos-waves.delay-2 {
   animation-delay: 0.4s;
+}
+
+@keyframes sirenBeaconPulse {
+  0% {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transform: scale(1.02);
+  }
+  100% {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    transform: scale(1);
+  }
+}
+
+@keyframes emergencyTopBarPulse {
+  0% { opacity: 0.95; }
+  100% { opacity: 1; filter: brightness(1.15); }
+}
+
+@keyframes publicSosPulse {
+  0% {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+    transform: scale(1.01);
+  }
+  100% {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+    transform: scale(1);
+  }
 }
 
 /* ── Utility Classes ───────────────────────────────────── */
@@ -233,16 +277,65 @@ body {
   border-radius: var(--radius-sm);
 }
 
-/* ── Responsive Helpers ────────────────────────────────── */
-@media (max-width: 992px) {
-  .sos-side-wrapper {
-    position: static !important;
-    transform: none !important;
-    margin-top: 36px;
+/* ── Responsive Helpers & Fixed Floating Emergency Icons ─ */
+.sos-side-wrapper {
+  display: none !important;
+}
+
+/* ── Global PWA Emergency Dock & Mobile Accessibility ── */
+.cems-global-emergency-dock {
+  position: fixed !important;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px)) !important;
+  right: calc(18px + env(safe-area-inset-right, 0px)) !important;
+  z-index: 9997 !important;
+}
+
+@media (max-width: 640px) {
+  .cems-global-emergency-dock {
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    right: calc(12px + env(safe-area-inset-right, 0px)) !important;
   }
-  .login-main-wrapper {
-    flex-direction: column !important;
+  .cems-global-emergency-dock .emergency-buttons-row {
+    padding: 6px 10px !important;
+    gap: 8px !important;
   }
+  .cems-global-emergency-dock button {
+    padding: 9px 14px !important;
+    font-size: 12px !important;
+  }
+  .cems-pwa-install-bar {
+    bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 10px !important;
+    right: 10px !important;
+    padding: 10px 14px !important;
+  }
+}
+
+/* Standalone PWA adjustments (when installed on mobile home screen) */
+@media all and (display-mode: standalone) {
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .cems-pwa-install-bar {
+    display: none !important;
+  }
+}
+
+@keyframes sirenSpin {
+  0% { transform: rotate(0deg); }
+  50% { transform: rotate(18deg) scale(1.08); }
+  100% { transform: rotate(0deg); }
+}
+
+@keyframes emergencyTopBarPulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  100% { transform: scale(1.03); filter: brightness(1.15); }
+}
+
+.cems-mobile-nav-strip {
+  display: none;
 }
 
 @media (max-width: 768px) {
@@ -250,6 +343,48 @@ body {
     display: none !important;
   }
   .dashboard-main {
-    padding: 16px !important;
+    padding: 12px 10px !important;
+    width: 100% !important;
+  }
+  .cems-mobile-nav-strip {
+    display: flex !important;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 8px 12px;
+    background: #FFFFFF;
+    border-bottom: 1.5px solid #A7F3D0;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    position: sticky;
+    top: 57px;
+    z-index: 15;
+  }
+  .cems-mobile-nav-strip::-webkit-scrollbar {
+    display: none;
+  }
+  .cems-mobile-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px;
+    border-radius: 20px;
+    border: 1.5px solid #CBD5E1;
+    background: #F8FAFC;
+    color: #475569;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    touch-action: manipulation;
+  }
+  .cems-mobile-tab-btn.active {
+    background: #DCFCE7;
+    border-color: #059669;
+    color: #064E3B;
+    font-weight: 800;
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.15);
   }
 }
+

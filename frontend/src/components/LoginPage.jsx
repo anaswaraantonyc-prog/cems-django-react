@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import MedicalModule from "../modules/MedicalModule";
+import EmergencySirenModal, { SirenBeaconIcon } from "./EmergencySirenModal";
+import PublicEmergencySOSModal from "./PublicEmergencySOSModal";
 
 /* ════════════════════════════════════════════════════════════
    ICONS (Clean SVG Icons)
@@ -30,6 +32,31 @@ const XIcon = () => (
   </svg>
 );
 
+const UserIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+    stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+  </svg>
+);
+
+const LockIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
+    stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+  </svg>
+);
+
+export function SosHandsetIcon({ size = 44, color = "#FFFFFF" }) {
+  return (
+    <svg width={size} height={size * 1.25} viewBox="0 -2 24 32" fill="none">
+      <path className="sos-waves" d="M15 8a4 4 0 0 1 2 2" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      <path className="sos-waves delay-1" d="M15 4a8 8 0 0 1 5 5" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      <path className="sos-waves delay-2" d="M15 0a12 12 0 0 1 8 8" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      <path d="M21.5 16.5v2.8c0 1.2-1 2.2-2.3 2.1a19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.6C1.4 2.5 2.4 1.5 3.6 1.5h2.8c1 0 1.9.8 2.1 1.8.2.9.4 1.8.7 2.6.2.7 0 1.5-.6 2l-1.3 1.3a16 16 0 0 0 6 6l1.3-1.3c.5-.6 1.3-.8 2-.6.8.3 1.7.5 2.6.7 1 .2 1.8 1 1.8 2.1z" fill={color} />
+    </svg>
+  );
+}
+
 /* ════════════════════════════════════════════════════════════
    PULSING RING ANIMATION & RESPONSIVE LAYOUT
 ════════════════════════════════════════════════════════════ */
@@ -41,30 +68,41 @@ function PulseStyle() { return null; }
    FIELD INPUT
 ════════════════════════════════════════════════════════════ */
 function Input({ label, id, type = "text", value, onChange, onBlur,
-  error, touched, autoComplete, placeholder, rightSlot }) {
+  error, touched, autoComplete, placeholder, rightSlot, leftIcon }) {
   const ok  = touched && !error && value.length > 0;
   const bad = touched && !!error;
   return (
     <div style={{ marginBottom: 18 }}>
       <label htmlFor={id} style={{
         display: "block", fontSize: 12, fontWeight: 700,
-        letterSpacing: "0.05em", color: "#581124", marginBottom: 6, textTransform: "uppercase"
+        letterSpacing: "0.05em", color: "#064E3B", marginBottom: 6, textTransform: "uppercase"
       }}>
         {label}
       </label>
       <div style={{ position: "relative" }}>
+        {leftIcon && (
+          <span style={{
+            position: "absolute", left: 13, top: "50%",
+            transform: "translateY(-50%)", display: "flex", alignItems: "center",
+            pointerEvents: "none", zIndex: 1
+          }}>
+            {leftIcon}
+          </span>
+        )}
         <input id={id} type={type} value={value} onChange={onChange} onBlur={onBlur}
           autoComplete={autoComplete} placeholder={placeholder}
           style={{
             width: "100%", boxSizing: "border-box",
-            padding: rightSlot ? "12px 42px 12px 14px" : "12px 38px 12px 14px",
-            border: `1.5px solid ${bad ? "#ef4444" : ok ? "#22c55e" : "#A7F3D0"}`,
+            padding: leftIcon
+              ? (rightSlot ? "12px 42px 12px 38px" : "12px 38px 12px 38px")
+              : (rightSlot ? "12px 42px 12px 14px" : "12px 38px 12px 14px"),
+            border: `1.5px solid ${bad ? "#ef4444" : ok ? "#10b981" : "#A7F3D0"}`,
             borderRadius: 10, fontSize: 14,
             fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
             background: bad ? "#fef2f2" : ok ? "#F0FDF4" : "#FFFFFF",
-            color: "#581124", outline: "none",
+            color: "#064E3B", outline: "none",
             boxShadow: bad ? "0 0 0 3px rgba(239, 68, 68, 0.12)"
-              : ok ? "0 0 0 3px rgba(34, 197, 94, 0.12)" : "none",
+              : ok ? "0 0 0 3px rgba(16, 185, 129, 0.15)" : "none",
             transition: "all 0.2s ease",
           }}
         />
@@ -117,10 +155,10 @@ function SosButton({ onClick }) {
       <button
         className="sos-btn"
         onClick={onClick}
-        title="Medical Emergency: Click to scan ID card and auto-call responder"
+        title="Emergency Panic Siren: Trigger immediate alarm sound, geolocation, and campus alert"
         style={{
           width: 80, height: 80,
-          background: "#581124",
+          background: "linear-gradient(135deg, #DC2626 0%, #991B1B 100%)",
           border: "4px solid #ffffff",
           borderRadius: "50%",
           cursor: "pointer",
@@ -130,29 +168,23 @@ function SosButton({ onClick }) {
           alignItems: "center",
           justifyContent: "center",
           padding: "0",
-          boxShadow: "0 6px 20px rgba(88, 17, 36, 0.35)",
+          boxShadow: "0 6px 24px rgba(220, 38, 38, 0.45)",
+          animation: "emergencyPulse 1.5s infinite",
         }}>
 
-        <svg width="60" height="76" viewBox="0 -2 24 32" fill="none" style={{ marginTop: "4px" }}>
-          {/* Blinking Waves */}
-          <path className="sos-waves" d="M15 8a4 4 0 0 1 2 2" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
-          <path className="sos-waves delay-1" d="M15 4a8 8 0 0 1 5 5" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
-          <path className="sos-waves delay-2" d="M15 0a12 12 0 0 1 8 8" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" />
-          
-          {/* Handset */}
-          <path d="M21.5 16.5v2.8c0 1.2-1 2.2-2.3 2.1a19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6 19.8 19.8 0 0 1-3.1-8.6C1.4 2.5 2.4 1.5 3.6 1.5h2.8c1 0 1.9.8 2.1 1.8.2.9.4 1.8.7 2.6.2.7 0 1.5-.6 2l-1.3 1.3a16 16 0 0 0 6 6l1.3-1.3c.5-.6 1.3-.8 2-.6.8.3 1.7.5 2.6.7 1 .2 1.8 1 1.8 2.1z" fill="#ffffff" />
-        </svg>
+        <div style={{ animation: "sirenSpin 1.8s infinite" }}>
+          <SirenBeaconIcon size={34} color="#FFFFFF" />
+        </div>
       </button>
 
-      {/* Small caption under icon */}
+      {/* Caption under icon */}
       <span style={{
         fontSize: 11,
-        fontWeight: 700,
-        color: "#581124",
+        fontWeight: 800,
+        color: "#DC2626",
         letterSpacing: "0.04em",
-        fontFamily: "'Sentient', serif",
       }}>
-        Emergency SOS
+        Emergency Siren
       </span>
     </div>
   );
@@ -169,6 +201,8 @@ export default function LoginPage({ onGoRegister, onLoggedIn, initialEmergency =
   const [apiError, setApiError]   = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [showEmergency, setShowEmergency] = useState(initialEmergency);
+  const [showSirenModal, setShowSirenModal] = useState(false);
+  const [showPublicSosModal, setShowPublicSosModal] = useState(false);
 
   useEffect(() => {
     if (initialEmergency) {
@@ -263,31 +297,21 @@ export default function LoginPage({ onGoRegister, onLoggedIn, initialEmergency =
           {/* ── login card (centered) ── */}
           <div style={{
             background: "#FFFFFF",
-            border: "1px solid #A7F3D0",
+            border: "1.5px solid #A7F3D0",
             borderRadius: 20,
             padding: "42px 38px",
             width: 370,
-            boxShadow: "0 20px 50px rgba(88, 17, 36, 0.12), 0 2px 8px rgba(201, 107, 133, 0.08)",
+            boxShadow: "0 20px 50px rgba(5, 150, 105, 0.1), 0 2px 8px rgba(16, 185, 129, 0.06)",
             zIndex: 2,
           }}>
-            {/* logo */}
-            <div style={{ textAlign: "center", marginBottom: 28 }}>
+            {/* Header */}
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
               <div style={{
-                width: 54, height: 54, borderRadius: 16, margin: "0 auto 14px",
-                background: "linear-gradient(135deg, #581124, #8B1E3F)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                boxShadow: "0 6px 20px rgba(88, 17, 36, 0.35)",
-              }}>
-                <span style={{
-                  color: "#ffffff", fontWeight: 800, fontSize: 24, letterSpacing: "-0.03em"
-                }}>C</span>
-              </div>
-              <div style={{
-                fontSize: 24, fontWeight: 800, color: "#581124", letterSpacing: "-0.02em"
+                fontSize: 24, fontWeight: 800, color: "#064E3B", letterSpacing: "-0.02em"
               }}>
                 Welcome back
               </div>
-              <div style={{ fontSize: 14, color: "#065F46", marginTop: 4 }}>
+              <div style={{ fontSize: 13, color: "#059669", marginTop: 4, fontWeight: 600 }}>
                 Sign in to your CEMS account
               </div>
             </div>
@@ -296,13 +320,15 @@ export default function LoginPage({ onGoRegister, onLoggedIn, initialEmergency =
               <Input label="Username or Email" id="login-username"
                 value={form.username} onChange={change("username")} onBlur={blur("username")}
                 error={errors.username} touched={touched.username}
-                autoComplete="username" placeholder="e.g. anaswara or anaswara@gmail.com" />
+                autoComplete="username" placeholder="e.g. anaswara or anaswara@gmail.com"
+                leftIcon={<UserIcon />} />
 
               <Input label="Password" id="login-password"
                 type={showPwd ? "text" : "password"}
                 value={form.password} onChange={change("password")} onBlur={blur("password")}
                 error={errors.password} touched={touched.password}
                 autoComplete="current-password" placeholder="Your password"
+                leftIcon={<LockIcon />}
                 rightSlot={
                   <button type="button" onClick={() => setShowPwd(s => !s)}
                     style={{ background: "none", border: "none", cursor: "pointer",
@@ -327,14 +353,16 @@ export default function LoginPage({ onGoRegister, onLoggedIn, initialEmergency =
                   width: "100%", padding: "13px", borderRadius: 10, border: "none",
                   background: submitting
                     ? "#94a3b8"
-                    : "linear-gradient(135deg, #581124, #8B1E3F)",
+                    : "linear-gradient(135deg, #10B981, #059669)",
                   color: "#ffffff", fontSize: 15, fontWeight: 700,
                   cursor: submitting ? "not-allowed" : "pointer",
                   letterSpacing: "0.01em",
-                  boxShadow: submitting ? "none" : "0 4px 16px rgba(88, 17, 36, 0.4)",
+                  boxShadow: submitting ? "none" : "0 4px 16px rgba(5, 150, 105, 0.35)",
                   transition: "all 0.2s ease",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                 }}>
-                {submitting ? "Signing in…" : "Sign In"}
+                <span>{submitting ? "Signing in…" : "Sign In"}</span>
+                {!submitting && <span style={{ fontSize: 16 }}>➔</span>}
               </button>
 
               <div style={{ display: "flex", alignItems: "center", margin: "16px 0 12px", gap: 10 }}>
@@ -355,7 +383,7 @@ export default function LoginPage({ onGoRegister, onLoggedIn, initialEmergency =
                   display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   transition: "all 0.2s ease",
                 }}>
-                <span>📷</span>
+                <span style={{ fontSize: 16 }}>📷</span>
                 <span>Scan to Sign In (Face / ID Card)</span>
               </button>
             </form>
@@ -363,25 +391,15 @@ export default function LoginPage({ onGoRegister, onLoggedIn, initialEmergency =
             <div style={{ textAlign: "center", marginTop: 18, fontSize: 13, color: "#065F46" }}>
               New here?{" "}
               <button onClick={onGoRegister}
-                style={{ background: "none", border: "none", color: "#8B1E3F",
+                style={{ background: "none", border: "none", color: "#059669",
                   fontWeight: 700, cursor: "pointer", padding: 0, fontSize: 13 }}>
                 Create an account
               </button>
             </div>
           </div>
-
-          {/* ── SOS emergency button (side) ── */}
-          <div className="sos-side-wrapper" style={{
-            position: "absolute",
-            right: 20,
-            top: "50%",
-            transform: "translateY(-50%)",
-            zIndex: 3,
-          }}>
-            <SosButton onClick={() => setShowEmergency(true)} />
-          </div>
         </div>
       </div>
+
 
       {/* ── emergency scan modal ── */}
       {showEmergency && (
@@ -401,6 +419,21 @@ export default function LoginPage({ onGoRegister, onLoggedIn, initialEmergency =
             />
           </div>
         </div>
+      )}
+
+      {/* ── Emergency Siren / Panic Alarm Modal ── */}
+      {showSirenModal && (
+        <EmergencySirenModal
+          onClose={() => setShowSirenModal(false)}
+          callerDefaultName="Campus Visitor / Student"
+        />
+      )}
+
+      {/* ── Public Emergency SOS Modal ── */}
+      {showPublicSosModal && (
+        <PublicEmergencySOSModal
+          onClose={() => setShowPublicSosModal(false)}
+        />
       )}
     </>
   );

@@ -5,11 +5,12 @@ import { maroonDark, gold, sage, brick } from "../theme";
 const INITIAL_HOSTEL_BOOKINGS = [
   {
     id: "BK-2026-8750",
-    title: "Hostel Block A - Semester Accommodation (AC)",
+    title: "Boys Hostel Block A - Semester Accommodation (AC)",
     applicant: "Ankit Patel",
     applicantRole: "STUDENT",
     date: "2026-08-10",
     roomType: "AC Room 304",
+    hostelType: "BOYS",
     status: "CONFIRMED",
     wardenStatus: "APPROVED",
     paymentStatus: "PAID",
@@ -17,16 +18,18 @@ const INITIAL_HOSTEL_BOOKINGS = [
     paymentTxnId: "UPI-2026-875011",
     paidAt: "2026-08-01 03:45 PM",
     details: "Single occupancy AC room for odd semester 2026.",
+    adminReply: "Room 304 allocated. Collect keys from warden desk at 9 AM.",
     amount: 3500,
     submittedAt: "2026-08-01",
   },
   {
     id: "BK-2026-8640",
-    title: "Hostel Guest House - Visiting Guest Lecturer Stay",
+    title: "Girls Hostel Guest House - Visiting Scholar Stay",
     applicant: "Kavita Verma",
     applicantRole: "FACULTY",
     date: "2026-07-20",
     roomType: "AC Suite 102",
+    hostelType: "GIRLS",
     status: "COMPLETED",
     wardenStatus: "APPROVED",
     paymentStatus: "PAID",
@@ -34,6 +37,7 @@ const INITIAL_HOSTEL_BOOKINGS = [
     paymentTxnId: "CARD-2026-864022",
     paidAt: "2026-07-12 10:00 AM",
     details: "3-day accommodation for visiting guest speaker from IIT Madras.",
+    adminReply: "Guest suite 102 reserved and prepared.",
     amount: 3500,
     submittedAt: "2026-07-12",
   },
@@ -46,10 +50,15 @@ const wardenStatusColor = (s) => {
   return { bg: "#F8FAFC", border: "#CBD5E1", text: "#334155" };
 };
 
-export default function WardenModule() {
+export default function WardenModule({ userName = "" }) {
   const [bookings, setBookings] = useState(INITIAL_HOSTEL_BOOKINGS);
+  const [replyDrafts, setReplyDrafts] = useState({});
+  const [actionSuccessMsg, setActionSuccessMsg] = useState("");
 
-  useEffect(() => {
+  const isBoysWarden = (userName || "").toLowerCase().includes("amith");
+  const isGirlsWarden = (userName || "").toLowerCase().includes("gracy");
+
+  const fetchBookings = () => {
     const token = localStorage.getItem("cems_access");
     if (token) {
       fetch("/api/bookings/bookings/?booking_type=HOSTEL", {
@@ -67,6 +76,8 @@ export default function WardenModule() {
               applicantRole: b.user_role || "STUDENT",
               date: b.event_datetime ? b.event_datetime.split("T")[0] : "2026-10-10",
               roomType: b.room_type || "Hostel Room",
+              hostelType: b.hostel_type || (b.title && b.title.toLowerCase().includes("girl") ? "GIRLS" : "BOYS"),
+              adminReply: b.admin_reply || "",
               status: b.status || "CONFIRMED",
               wardenStatus: b.status === "CONFIRMED" ? "APPROVED" : b.status === "CANCELLED" ? "REJECTED" : "PENDING",
               paymentStatus: b.payment_status || "PAID",
@@ -82,13 +93,64 @@ export default function WardenModule() {
         })
         .catch(() => {});
     }
+  };
+
+  useEffect(() => {
+    fetchBookings();
   }, []);
 
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [expandedId, setExpandedId] = useState(null);
 
-  const updateWardenStatus = async (id, newStatus) => {
+  const updateWardenStatus = async (id, newStatus, customReply) => {
+    const numericId = String(id).replace("BK-", "");
+    const token = localStorage.getItem("cems_access");
+    const replyText = customReply !== undefined ? customReply : (replyDrafts[id] || "");
+
+    const payload = {
+      status: newStatus === "APPROVED" ? "CONFIRMED" : "CANCELLED",
+    };
+    if (replyText.trim()) {
+      payload.admin_reply = replyText.trim();
+    }
+
+    if (token && !isNaN(numericId)) {
+      try {
+        await fetch(`/api/bookings/bookings/${numericId}/`, {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {
+        console.error("Error updating warden status:", e);
+      }
+    }
+
+    setBookings((prev) =>
+      prev.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              wardenStatus: newStatus,
+              status: newStatus === "APPROVED" ? "CONFIRMED" : "CANCELLED",
+              adminReply: replyText.trim() || b.adminReply,
+            }
+          : b
+      )
+    );
+
+    setActionSuccessMsg(`Booking ${id} ${newStatus === "APPROVED" ? "accepted and confirmed" : "declined"} with reply message sent.`);
+    setTimeout(() => setActionSuccessMsg(""), 4000);
+  };
+
+  const sendOnlyReply = async (id) => {
+    const replyText = (replyDrafts[id] || "").trim();
+    if (!replyText) return;
+
     const numericId = String(id).replace("BK-", "");
     const token = localStorage.getItem("cems_access");
     if (token && !isNaN(numericId)) {
@@ -99,17 +161,19 @@ export default function WardenModule() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ status: newStatus === "APPROVED" ? "CONFIRMED" : "CANCELLED" })
+          body: JSON.stringify({ admin_reply: replyText })
         });
-      } catch (e) {}
+      } catch (e) {
+        console.error("Error sending reply:", e);
+      }
     }
+
     setBookings((prev) =>
-      prev.map((b) =>
-        b.id === id
-          ? { ...b, wardenStatus: newStatus, status: newStatus === "APPROVED" ? "CONFIRMED" : "CANCELLED" }
-          : b
-      )
+      prev.map((b) => (b.id === id ? { ...b, adminReply: replyText } : b))
     );
+
+    setActionSuccessMsg(`Reply message for ${id} sent to student successfully.`);
+    setTimeout(() => setActionSuccessMsg(""), 4000);
   };
 
   const filtered = bookings.filter((b) => {
@@ -131,25 +195,62 @@ export default function WardenModule() {
     .reduce((s, b) => s + (b.amount || 0), 0);
 
   return (
-    <div style={{ maxWidth: 900, margin: "0 auto", paddingBottom: 40 }}>
+    <div style={{ maxWidth: 920, margin: "0 auto", paddingBottom: 40 }}>
       {/* ── Banner ── */}
       <div style={{
-        background: "linear-gradient(135deg, #1E3A5F 0%, #2563EB 60%, #059669 100%)",
+        background: isGirlsWarden
+          ? "linear-gradient(135deg, #831843 0%, #BE185D 60%, #065F46 100%)"
+          : isBoysWarden
+          ? "linear-gradient(135deg, #064E3B 0%, #059669 60%, #1E3A5F 100%)"
+          : "linear-gradient(135deg, #1E3A5F 0%, #2563EB 60%, #059669 100%)",
         border: `1.5px solid ${gold}`, borderRadius: 14, padding: "20px 24px",
         marginBottom: 22, color: "#FFF", boxShadow: "0 6px 20px rgba(0,0,0,0.12)",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <span style={{ fontSize: 36 }}>🏨</span>
-          <div>
-            <strong style={{ fontSize: 18, display: "block", color: gold }}>
-              Hostel Warden — Accommodation Booking Dashboard
-            </strong>
-            <div style={{ fontSize: 13, marginTop: 4, opacity: 0.9 }}>
-              Review and approve or reject hostel room booking requests from students and faculty.
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <span style={{ fontSize: 38 }}>🏨</span>
+            <div>
+              <strong style={{ fontSize: 19, display: "block", color: gold }}>
+                {isBoysWarden
+                  ? "Boys Hostel Warden Dashboard — Warden Amith"
+                  : isGirlsWarden
+                  ? "Girls Hostel Warden Dashboard — Warden Gracy"
+                  : "Hostel Warden Accommodation & Approval Dashboard"}
+              </strong>
+              <div style={{ fontSize: 13, marginTop: 4, opacity: 0.9 }}>
+                {isBoysWarden
+                  ? "Exclusively managing all Boys Hostel room booking requests and student stay allotments."
+                  : isGirlsWarden
+                  ? "Exclusively managing all Girls Hostel room booking requests and student stay allotments."
+                  : "Review hostel room booking requests, accept bookings, and send reply messages to students."}
+              </div>
             </div>
+          </div>
+          <div style={{
+            background: "rgba(255,255,255,0.15)",
+            border: "1px solid rgba(255,255,255,0.3)",
+            borderRadius: 8,
+            padding: "8px 14px",
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#FFF",
+          }}>
+            {isBoysWarden ? "🏢 Assigned: Boys Hostel" : isGirlsWarden ? "🌸 Assigned: Girls Hostel" : "🏢 General Hostel Admin"}
           </div>
         </div>
       </div>
+
+      {actionSuccessMsg && (
+        <div style={{
+          background: "#ECFDF5", border: "1.5px solid #10B981", borderRadius: 10,
+          padding: "12px 18px", marginBottom: 18, color: "#065F46", fontSize: 13,
+          fontWeight: 700, display: "flex", alignItems: "center", gap: 10,
+          animation: "fadeIn 0.2s ease"
+        }}>
+          <span>✅</span>
+          <span>{actionSuccessMsg}</span>
+        </div>
+      )}
 
       {/* ── Stats Row ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px,1fr))", gap: 12, marginBottom: 22 }}>
@@ -210,6 +311,7 @@ export default function WardenModule() {
             const ws = booking.wardenStatus || (booking.status.includes("PENDING") ? "PENDING" : "APPROVED");
             const col = wardenStatusColor(ws);
             const isExpanded = expandedId === booking.id;
+            const currentReply = replyDrafts[booking.id] !== undefined ? replyDrafts[booking.id] : (booking.adminReply || "");
 
             return (
               <div key={booking.id} style={{
@@ -223,7 +325,18 @@ export default function WardenModule() {
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       <span style={{ fontSize: 24 }}>🏨</span>
                       <div>
-                        <div style={{ fontWeight: 800, fontSize: 14, color: maroonDark }}>{booking.title}</div>
+                        <div style={{ fontWeight: 800, fontSize: 14, color: maroonDark, display: "flex", alignItems: "center", gap: 8 }}>
+                          <span>{booking.title}</span>
+                          {booking.hostelType === "GIRLS" ? (
+                            <span style={{ fontSize: 10, fontWeight: 800, color: "#9D174D", background: "#FCE7F3", padding: "2px 8px", borderRadius: 12 }}>
+                              🌸 Girls Hostel
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 10, fontWeight: 800, color: "#065F46", background: "#D1FAE5", padding: "2px 8px", borderRadius: 12 }}>
+                              🏢 Boys Hostel
+                            </span>
+                          )}
+                        </div>
                         <div style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>
                           👤 {booking.applicant} ({booking.applicantRole}) · 📅 {booking.date}
                         </div>
@@ -236,7 +349,7 @@ export default function WardenModule() {
                       <span style={{ fontSize: 18, color: "#64748B" }}>{isExpanded ? "▲" : "▼"}</span>
                     </div>
                   </div>
-                  <div style={{ display: "flex", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 16, marginTop: 10, flexWrap: "wrap", alignItems: "center" }}>
                     <span style={{ fontSize: 12, color: "#334155", fontWeight: 600 }}>
                       🛏️ {booking.roomType || "Room not specified"}
                     </span>
@@ -247,6 +360,11 @@ export default function WardenModule() {
                       {booking.paymentStatus === "PAID" ? "✅ Paid" : booking.paymentStatus === "REFUNDED" ? "↩️ Refunded" : "⚠️ Unpaid"}
                     </span>
                     <span style={{ fontSize: 12, color: "#6B7280" }}>ID: {booking.id}</span>
+                    {booking.adminReply && (
+                      <span style={{ fontSize: 11, color: "#1E40AF", background: "#EFF6FF", padding: "2px 8px", borderRadius: 4, fontWeight: 700 }}>
+                        💬 Reply Sent
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -261,12 +379,12 @@ export default function WardenModule() {
                         <div style={{ fontSize: 12, color: "#6B7280" }}>{booking.applicantRole}</div>
                       </div>
                       <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 14px" }}>
-                        <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 4 }}>ROOM TYPE</div>
+                        <div style={{ fontSize: 11, color: "#6B7280", fontWeight: 600, marginBottom: 4 }}>HOSTEL WING & ROOM</div>
                         <div style={{ fontWeight: 700, color: maroonDark }}>
-                          {booking.roomType && booking.roomType !== "N/A" ? booking.roomType : "Not specified"}
+                          {booking.hostelType === "GIRLS" ? "🌸 Girls Hostel" : "🏢 Boys Hostel"}
                         </div>
                         <div style={{ fontSize: 12, color: "#6B7280" }}>
-                          {booking.roomType && booking.roomType.toLowerCase().includes("ac") ? "Air Conditioned" : "Non-AC"}
+                          {booking.roomType && booking.roomType !== "N/A" ? booking.roomType : "Standard Room"}
                         </div>
                       </div>
                       <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: 8, padding: "10px 14px" }}>
@@ -293,6 +411,17 @@ export default function WardenModule() {
                       </div>
                     )}
 
+                    {/* Previously Sent Reply Display */}
+                    {booking.adminReply && (
+                      <div style={{
+                        background: "#EFF6FF", border: "1.5px solid #BFDBFE", borderRadius: 8,
+                        padding: "10px 14px", marginBottom: 14, fontSize: 13, color: "#1E40AF",
+                      }}>
+                        <span style={{ fontWeight: 800 }}>💬 Currently Sent Warden Reply: </span>
+                        <span>{booking.adminReply}</span>
+                      </div>
+                    )}
+
                     {/* Payment Txn Info */}
                     {booking.paymentStatus === "PAID" && booking.paymentTxnId && (
                       <div style={{
@@ -303,42 +432,97 @@ export default function WardenModule() {
                       </div>
                     )}
 
+                    {/* Reply Message Drafting Box */}
+                    <div style={{
+                      background: "#F8FAFC",
+                      border: "1px solid #CBD5E1",
+                      borderRadius: 8,
+                      padding: "12px 14px",
+                      marginBottom: 14,
+                    }}>
+                      <label style={{ fontSize: 12, fontWeight: 700, color: maroonDark, display: "block", marginBottom: 6 }}>
+                        ✉️ Warden Reply Message / Room Allotment Note (Sent to Student):
+                      </label>
+                      <textarea
+                        rows={2}
+                        placeholder="e.g. Approved. Room 204 allocated on 2nd floor. Please collect keys from warden desk."
+                        value={currentReply}
+                        onChange={(e) => setReplyDrafts((prev) => ({ ...prev, [booking.id]: e.target.value }))}
+                        style={{
+                          width: "100%",
+                          boxSizing: "border-box",
+                          padding: "8px 12px",
+                          borderRadius: 6,
+                          border: "1px solid #CBD5E1",
+                          fontSize: 13,
+                          fontFamily: "inherit",
+                          resize: "vertical",
+                          background: "#FFF",
+                        }}
+                      />
+                    </div>
+
                     {/* Warden Action Buttons */}
                     {ws === "PENDING" ? (
                       <div>
                         <div style={{ fontSize: 12, fontWeight: 700, color: maroonDark, marginBottom: 8 }}>
                           Warden Decision:
                         </div>
-                        <div style={{ display: "flex", gap: 10 }}>
-                          <button onClick={() => updateWardenStatus(booking.id, "APPROVED")} style={{
-                            padding: "10px 20px", borderRadius: 8, border: "none",
-                            background: "#16A34A", color: "#FFF", fontWeight: 800, fontSize: 13,
-                            cursor: "pointer", boxShadow: "0 2px 8px rgba(22,163,74,0.3)",
-                            transition: "all 0.15s ease", flex: 1,
-                          }}>
-                            ✔ Approve & Allocate Room
+                        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                          <button
+                            onClick={() => updateWardenStatus(booking.id, "APPROVED")}
+                            style={{
+                              padding: "10px 20px", borderRadius: 8, border: "none",
+                              background: "linear-gradient(135deg, #16A34A, #15803D)", color: "#FFF", fontWeight: 800, fontSize: 13,
+                              cursor: "pointer", boxShadow: "0 2px 8px rgba(22,163,74,0.3)",
+                              transition: "all 0.15s ease", flex: 1, minWidth: 200,
+                            }}
+                          >
+                            ✔ Accept & Send Reply
                           </button>
-                          <button onClick={() => updateWardenStatus(booking.id, "REJECTED")} style={{
-                            padding: "10px 20px", borderRadius: 8,
-                            border: "2px solid #DC2626", background: "#FFF",
-                            color: "#DC2626", fontWeight: 800, fontSize: 13,
-                            cursor: "pointer", transition: "all 0.15s ease", flex: 1,
-                          }}>
-                            ✖ Reject Request
+                          <button
+                            onClick={() => updateWardenStatus(booking.id, "REJECTED")}
+                            style={{
+                              padding: "10px 20px", borderRadius: 8,
+                              border: "2px solid #DC2626", background: "#FFF",
+                              color: "#DC2626", fontWeight: 800, fontSize: 13,
+                              cursor: "pointer", transition: "all 0.15s ease", flex: 1, minWidth: 200,
+                            }}
+                          >
+                            ✖ Reject & Send Reply
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <div style={{
-                        background: ws === "APPROVED" ? "#F0FDF4" : "#FEF2F2",
-                        border: `1px solid ${ws === "APPROVED" ? "#BBF7D0" : "#FECACA"}`,
-                        borderRadius: 8, padding: "12px 16px", fontSize: 13, fontWeight: 700,
-                        color: ws === "APPROVED" ? "#15803D" : "#B91C1C",
-                        display: "flex", alignItems: "center", gap: 8,
-                      }}>
-                        {ws === "APPROVED"
-                          ? "✅ Room allocation approved. Student/faculty may check in on the scheduled date."
-                          : "❌ Room allocation rejected. The applicant has been notified."}
+                      <div>
+                        <div style={{
+                          background: ws === "APPROVED" ? "#F0FDF4" : "#FEF2F2",
+                          border: `1px solid ${ws === "APPROVED" ? "#BBF7D0" : "#FECACA"}`,
+                          borderRadius: 8, padding: "12px 16px", fontSize: 13, fontWeight: 700,
+                          color: ws === "APPROVED" ? "#15803D" : "#B91C1C",
+                          display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 10,
+                        }}>
+                          <span>
+                            {ws === "APPROVED"
+                              ? "✅ Room allocation approved. Student/faculty may check in on the scheduled date."
+                              : "❌ Room allocation rejected. The applicant has been notified."}
+                          </span>
+                          <button
+                            onClick={() => sendOnlyReply(booking.id)}
+                            style={{
+                              background: "#065F46",
+                              color: "#FFF",
+                              border: "none",
+                              borderRadius: 6,
+                              padding: "6px 14px",
+                              fontSize: 12,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            💬 Update / Send Reply
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>

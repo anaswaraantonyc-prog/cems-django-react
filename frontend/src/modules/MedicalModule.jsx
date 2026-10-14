@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Card, Label, Stamp } from "../components/Shared";
 import { buttonStyle, line, sage, brick, gold, goldLight, maroon, maroonDark, offWhite, maroonSoft } from "../theme";
+import MedicalStaffDesk from "../components/MedicalStaffDesk";
+import { resolveMediaUrl } from "../apiConfig";
 
 /* ═══════════════════════════════════════════════════════════
    ICONS & HELPERS
@@ -19,51 +21,62 @@ function authHeader() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-/* ── Detect if we're likely on a mobile device that supports tel: ── */
-function isMobile() {
-  return /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+/* ── Communication Helpers: WhatsApp & Direct Phone Call ── */
+export function WhatsAppIcon({ size = 20, color = "currentColor" }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm.01 1.67c4.54 0 8.24 3.7 8.24 8.24 0 2.2-.86 4.28-2.42 5.83a8.17 8.17 0 0 1-5.82 2.41c-1.47 0-2.93-.39-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.19 8.19 0 0 1-1.26-4.38c0-4.54 3.7-8.24 8.25-8.24zm4.52 11.66c-.25-.13-1.47-.72-1.7-.81-.23-.08-.39-.13-.56.13-.17.25-.64.81-.79.97-.14.17-.29.19-.54.06-.25-.13-1.06-.39-2.02-1.25-.75-.67-1.26-1.5-1.4-1.75-.15-.25-.02-.39.11-.51.11-.11.25-.29.38-.44.13-.14.17-.25.25-.42.08-.17.04-.31-.02-.44-.06-.13-.56-1.35-.77-1.85-.2-.49-.41-.42-.56-.43h-.48c-.17 0-.44.06-.67.31-.23.25-.88.86-.88 2.1 0 1.24.9 2.44 1.03 2.61.13.17 1.78 2.72 4.31 3.81.6.26 1.07.42 1.44.54.61.19 1.16.17 1.6.1.49-.07 1.47-.6 1.68-1.18.21-.58.21-1.07.15-1.18-.07-.11-.23-.17-.48-.3z" />
+    </svg>
+  );
 }
 
-/* ── Open call: tel: on mobile, Google search on desktop ── */
-function openCall(number, name) {
-  if (isMobile()) {
-    window.location.href = `tel:${number.replace(/[^\d+]/g, "")}`;
-  } else {
-    const query = encodeURIComponent(`${name} ${number} medical representative contact`);
-    window.open(`https://www.google.com/search?q=${query}`, "_blank", "noopener,noreferrer");
+export function getCleanPhone(number) {
+  if (!number) return "";
+  let digits = number.replace(/\D/g, "");
+  if (digits.length === 10) {
+    digits = "91" + digits;
   }
+  return digits;
 }
 
-/* ── auto-trigger call on load ── */
-function AutoCall({ number, name }) {
-  useEffect(() => {
-    // Small delay so the calling screen renders first, then trigger
-    const t = setTimeout(() => openCall(number, name), 800);
-    return () => clearTimeout(t);
-  }, [number, name]);
-  return null;
+export function openWhatsApp(number, name = "Medical Responder") {
+  if (!number) return;
+  const clean = getCleanPhone(number);
+  const text = encodeURIComponent(`Emergency / Medical Assistance: Hello ${name}, I am contacting you through CEMS.`);
+  const url = clean ? `https://wa.me/${clean}?text=${text}` : `https://wa.me/?text=${text}`;
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 /* ═══════════════════════════════════════════════════════════
    CAMERA SCANNER COMPONENT (Two Completely Independent Methods)
    METHOD 1: ID Card Scanner (Rectangular guide, OCR, no face)
    METHOD 2: Face Scanner (Oval guide, biometrics, no card)
+   MOBILE & PWA READY: Supports Front/Rear cameras, camera switch,
+   insecure-origin fallback, native camera integration & track cleanup.
 ═══════════════════════════════════════════════════════════ */
 function CameraView({ mode, onCapture, onCancel }) {
-  const videoRef    = useRef(null);
-  const canvasRef   = useRef(null);
-  const streamRef   = useRef(null);
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const streamRef = useRef(null);
   const scanLoopRef = useRef(null);
-
-  const [starting,        setStarting]        = useState(true);
-  const [camError,        setCamError]        = useState("");
-  const [scanWarning,     setScanWarning]     = useState("");
-  const [identityInput,   setIdentityInput]   = useState("");
-  const [scanStatus,      setScanStatus]      = useState("searching"); // 'searching' | 'detected' | 'reading' | 'verified'
-  const [holdProgress,    setHoldProgress]    = useState(0); // 0 to 100%
-  const [capturedPreview, setCapturedPreview] = useState(null);
+  const fileInputRef = useRef(null);
 
   const isIdCard = mode === "idcard";
+  const [facingMode, setFacingMode] = useState(isIdCard ? "environment" : "user");
+  const [starting, setStarting] = useState(true);
+  const [camError, setCamError] = useState("");
+  const [scanWarning, setScanWarning] = useState("");
+  const [identityInput, setIdentityInput] = useState("");
+  const [scanStatus, setScanStatus] = useState("searching"); // 'searching' | 'detected' | 'reading' | 'verified'
+  const [holdProgress, setHoldProgress] = useState(0); // 0 to 100%
+  const [capturedPreview, setCapturedPreview] = useState(null);
+
+  // Check Secure Context (HTTPS or localhost)
+  const isSecureContext =
+    typeof window !== "undefined" &&
+    (window.isSecureContext === true ||
+      window.location.hostname === "localhost" ||
+      window.location.hostname === "127.0.0.1");
 
   /* Guidance titles and subtitles per specifications */
   let guidanceTitle = "";
@@ -75,13 +88,13 @@ function CameraView({ mode, onCapture, onCancel }) {
       guidanceSubtitle = "Identity verified. Opening emergency profile...";
     } else if (scanStatus === "reading") {
       guidanceTitle = "Reading ID card...";
-      guidanceSubtitle = "Extracting card information via optical scan...";
+      guidanceSubtitle = "Scan the ID card only, not face. Extracting card information...";
     } else if (scanStatus === "detected") {
       guidanceTitle = "ID card detected";
-      guidanceSubtitle = "Hold steady inside the card frame...";
+      guidanceSubtitle = "Scan the ID card only, not face. Hold steady inside the frame...";
     } else {
-      guidanceTitle = "Scan your College ID Card";
-      guidanceSubtitle = "Place the ID card inside the frame.";
+      guidanceTitle = "Scan the ID card only, not face";
+      guidanceSubtitle = "Place your physical College ID card inside the frame.";
     }
   } else {
     // Face Scanner mode
@@ -103,52 +116,151 @@ function CameraView({ mode, onCapture, onCancel }) {
     }
   }
 
-  /* Start camera */
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
+  /* Stop all camera tracks cleanly */
+  const stopCameraStream = useCallback(() => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch (e) {}
+      });
+      streamRef.current = null;
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+  }, []);
+
+  /* Process Captured or Selected Image File (Shared Verification Pipeline) */
+  const processImageFile = useCallback(
+    async (file) => {
+      stopCameraStream();
+      const previewUrl = URL.createObjectURL(file);
+      setCapturedPreview(previewUrl);
+
+      if (isIdCard) {
+        setScanStatus("reading");
+        let extractedOcr = "";
+        try {
+          const { default: Tesseract } = await import("tesseract.js");
+          const ocrRes = await Promise.race([
+            Tesseract.recognize(file, "eng"),
+            new Promise((resolve) => setTimeout(() => resolve(null), 6000)),
+          ]);
+          if (ocrRes?.data?.text) {
+            extractedOcr = ocrRes.data.text;
+          }
+        } catch (e) {}
+
+        setScanStatus("verified");
+        setTimeout(() => {
+          onCapture(file, identityInput, {
+            idCardFile: file,
+            cardPreview: previewUrl,
+            ocrText: extractedOcr,
+            identityInput,
+          });
+        }, 350);
+      } else {
+        // Face Verification
+        setScanStatus("reading");
+        setTimeout(() => {
+          setScanStatus("verified");
+          setTimeout(() => {
+            onCapture(file, "", {
+              faceFile: file,
+              facePreview: previewUrl,
+            });
+          }, 350);
+        }, 300);
+      }
+    },
+    [identityInput, isIdCard, onCapture, stopCameraStream]
+  );
+
+  /* Start camera with requested facingMode */
+  const startCameraStream = useCallback(
+    async (facing) => {
+      setStarting(true);
+      setCamError("");
+      stopCameraStream();
+
       if (!navigator.mediaDevices?.getUserMedia) {
-        setCamError("Camera permission is required. Camera API is not accessible in this browser.");
+        if (!isSecureContext) {
+          setCamError(
+            "Notice: Android Chrome requires a Secure Context (HTTPS) for live webcam streaming over Wi-Fi. You can tap '📸 Take Photo with Phone Camera' below to scan immediately using your phone's camera, or see instructions to enable local IP in Chrome flags."
+          );
+        } else {
+          setCamError("Camera API is not supported or accessible in this browser.");
+        }
         setStarting(false);
         return;
       }
+
       try {
         let stream;
         try {
-          const facing = isIdCard ? { ideal: "environment" } : { ideal: "user" };
           stream = await navigator.mediaDevices.getUserMedia({
-            video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: facing },
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: { ideal: facing },
+            },
             audio: false,
           });
-        } catch {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        } catch (e1) {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({
+              video: { facingMode: facing },
+              audio: false,
+            });
+          } catch (e2) {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+          }
         }
-        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
+
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
+          videoRef.current.setAttribute("playsinline", "true");
           await videoRef.current.play();
         }
         setStarting(false);
       } catch (err) {
+        console.warn("getUserMedia error:", err);
         if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
-          setCamError("Camera permission denied. Please allow camera access in your browser settings and try again.");
+          setCamError(
+            "Camera permission denied. Please allow camera access in browser site settings, or tap '📸 Take Photo with Phone Camera' below."
+          );
         } else if (err.name === "NotFoundError" || err.name === "DevicesNotFoundError") {
-          setCamError("Camera unavailable. No webcam or camera device was found on this system.");
+          setCamError("No camera device was found on this system.");
         } else if (err.name === "NotReadableError" || err.name === "TrackStartError") {
-          setCamError("Camera is already in use by another application. Please close other software using your camera.");
+          setCamError("Camera is already in use by another application. Please close other software using the camera.");
         } else {
-          setCamError("Camera permission is required. Please enable camera access in your browser settings.");
+          setCamError(
+            "Could not start live camera. Tap '📸 Take Photo with Phone Camera' below to capture immediately."
+          );
         }
         setStarting(false);
       }
-    })();
+    },
+    [isSecureContext, stopCameraStream]
+  );
+
+  /* Start camera on mount & restart on mode change */
+  useEffect(() => {
+    startCameraStream(facingMode);
     return () => {
-      cancelled = true;
-      streamRef.current?.getTracks().forEach(t => t.stop());
+      stopCameraStream();
       if (scanLoopRef.current) clearInterval(scanLoopRef.current);
     };
-  }, [isIdCard]);
+  }, [facingMode, startCameraStream, stopCameraStream]);
+
+  /* Toggle Front / Rear Camera */
+  const handleToggleCamera = () => {
+    const nextFacing = facingMode === "user" ? "environment" : "user";
+    setFacingMode(nextFacing);
+  };
 
   /* Capture ID Card Flow (Pure ID Card - NO face step) */
   const doCaptureCard = useCallback(async () => {
@@ -170,36 +282,12 @@ function CameraView({ mode, onCapture, onCancel }) {
     const cctx = cardCanvas.getContext("2d");
     cctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
 
-    const previewUrl = cardCanvas.toDataURL("image/jpeg", 0.92);
-    setCapturedPreview(previewUrl);
-    setScanStatus("reading");
-
-    let extractedOcr = "";
-    try {
-      const { default: Tesseract } = await import("tesseract.js");
-      const ocrRes = await Promise.race([
-        Tesseract.recognize(cardCanvas, "eng"),
-        new Promise(resolve => setTimeout(() => resolve(null), 6500)),
-      ]);
-      if (ocrRes?.data?.text) {
-        extractedOcr = ocrRes.data.text;
-      }
-    } catch {}
-
-    cardCanvas.toBlob(blob => {
+    cardCanvas.toBlob((blob) => {
       if (!blob) return;
       const cardFile = new File([blob], "id-card-scan.jpg", { type: "image/jpeg" });
-      setScanStatus("verified");
-      setTimeout(() => {
-        onCapture(cardFile, identityInput, {
-          idCardFile: cardFile,
-          cardPreview: previewUrl,
-          ocrText: extractedOcr,
-          identityInput,
-        });
-      }, 400);
+      processImageFile(cardFile);
     }, "image/jpeg", 0.95);
-  }, [identityInput, onCapture]);
+  }, [processImageFile]);
 
   /* Capture Face Flow (Pure Face - NO ID card step) */
   const doCaptureFace = useCallback(() => {
@@ -210,24 +298,18 @@ function CameraView({ mode, onCapture, onCancel }) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext("2d");
+    if (facingMode === "user") {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+    }
     ctx.drawImage(video, 0, 0);
 
-    const facePreview = canvas.toDataURL("image/jpeg", 0.92);
-    setCapturedPreview(facePreview);
-    setScanStatus("reading");
-
-    canvas.toBlob(blob => {
+    canvas.toBlob((blob) => {
       if (!blob) return;
       const faceFile = new File([blob], "face-scan.jpg", { type: "image/jpeg" });
-      setScanStatus("verified");
-      setTimeout(() => {
-        onCapture(faceFile, "", {
-          faceFile,
-          facePreview,
-        });
-      }, 500);
+      processImageFile(faceFile);
     }, "image/jpeg", 0.95);
-  }, [onCapture]);
+  }, [facingMode, processImageFile]);
 
   /* Real-time frame detection loop */
   useEffect(() => {
@@ -252,11 +334,18 @@ function CameraView({ mode, onCapture, onCancel }) {
         // ID Card mode: Check rectangular sharpness & contrast
         if (scanStatus === "reading" || scanStatus === "verified") return;
 
-        let sum = 0, sumSq = 0, count = 0, totalB = 0;
+        let sum = 0,
+          sumSq = 0,
+          count = 0,
+          totalB = 0;
+        let skinCount = 0;
         for (let y = 2; y < sampleH - 2; y += 3) {
           for (let x = 2; x < sampleW - 2; x += 3) {
             const idx = (y * sampleW + x) * 4;
-            const gray = (d[idx] + d[idx + 1] + d[idx + 2]) / 3;
+            const r = d[idx],
+              g = d[idx + 1],
+              b = d[idx + 2];
+            const gray = (r + g + b) / 3;
             totalB += gray;
             const top = (d[idx - sampleW * 4] + d[idx - sampleW * 4 + 1] + d[idx - sampleW * 4 + 2]) / 3;
             const bot = (d[idx + sampleW * 4] + d[idx + sampleW * 4 + 1] + d[idx + sampleW * 4 + 2]) / 3;
@@ -266,22 +355,37 @@ function CameraView({ mode, onCapture, onCancel }) {
             sum += lap;
             sumSq += lap * lap;
             count++;
+
+            // Detect human skin tone pixels (face / person in frame)
+            if (r > 60 && g > 40 && b > 20 && r > g && r > b && r - b > 10) {
+              skinCount++;
+            }
           }
         }
         const mean = sum / count;
-        const variance = (sumSq / count) - (mean * mean);
+        const variance = sumSq / count - mean * mean;
         const avgBrightness = totalB / count;
+        const skinRatio = skinCount / count;
+
+        // If a human face dominates the frame in ID Card mode and no card texture is present:
+        if (skinRatio > 0.4 && variance < 20.0) {
+          setScanWarning("Scan the ID card only, not face. Please place your physical ID card inside the frame.");
+          setScanStatus("searching");
+          steadyCounter = 0;
+          setHoldProgress(0);
+          return;
+        }
 
         const hasCardInFrame = variance > 12.0 && avgBrightness > 30 && avgBrightness < 240;
 
         if (hasCardInFrame) {
           steadyCounter++;
-          const progressPct = Math.min(100, Math.round((steadyCounter / 7) * 100));
+          const progressPct = Math.min(100, Math.round((steadyCounter / 10) * 100));
           setHoldProgress(progressPct);
           setScanStatus("detected");
           setScanWarning("");
 
-          if (steadyCounter >= 7) {
+          if (steadyCounter >= 10) {
             doCaptureCard();
           }
         } else {
@@ -300,10 +404,12 @@ function CameraView({ mode, onCapture, onCancel }) {
         let totalB = 0;
 
         for (let i = 0; i < d.length; i += 16) {
-          const r = d[i], g = d[i + 1], b = d[i + 2];
+          const r = d[i],
+            g = d[i + 1],
+            b = d[i + 2];
           totalB += (r + g + b) / 3;
-          const pixelX = ((i / 4) % sampleW);
-          if (r > 60 && g > 40 && b > 20 && r > g && r > b && (r - b) > 10) {
+          const pixelX = (i / 4) % sampleW;
+          if (r > 60 && g > 40 && b > 20 && r > g && r > b && r - b > 10) {
             skinCount++;
             if (pixelX < sampleW * 0.4) leftSideSkin++;
             if (pixelX > sampleW * 0.6) rightSideSkin++;
@@ -369,161 +475,293 @@ function CameraView({ mode, onCapture, onCancel }) {
     setScanWarning("");
     setCamError("");
     setIdentityInput("");
+    startCameraStream(facingMode);
+  };
+
+  const handleCancelClick = () => {
+    stopCameraStream();
+    onCancel?.();
   };
 
   return (
     <div style={{ textAlign: "center" }}>
       {/* Guidance Header Banner */}
-      <div style={{
-        background: scanStatus === "verified" ? "#ECFDF5" : scanStatus === "detected" ? "#FFFBEB" : "#F8FAFC",
-        border: `1.5px solid ${scanStatus === "verified" ? "#10B981" : scanStatus === "detected" ? gold : "#CBD5E1"}`,
-        borderRadius: 10, padding: "12px 14px", marginBottom: 12, textAlign: "center",
-        boxShadow: "0 2px 8px rgba(0,0,0,0.04)"
-      }}>
-        <div style={{
-          fontSize: 15, fontWeight: 800,
-          color: scanStatus === "verified" ? "#15803D" : maroonDark,
-          display: "flex", alignItems: "center", justifyContent: "center", gap: 8
-        }}>
+      <div
+        style={{
+          background: scanStatus === "verified" ? "#ECFDF5" : scanStatus === "detected" ? "#FFFBEB" : "#F8FAFC",
+          border: `1.5px solid ${scanStatus === "verified" ? "#10B981" : scanStatus === "detected" ? gold : "#CBD5E1"}`,
+          borderRadius: 10,
+          padding: "12px 14px",
+          marginBottom: 12,
+          textAlign: "center",
+          boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 15,
+            fontWeight: 800,
+            color: scanStatus === "verified" ? "#15803D" : maroonDark,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+          }}
+        >
           <span style={{ fontSize: 18 }}>{isIdCard ? "🪪" : "👤"}</span>
           <span>{guidanceTitle}</span>
         </div>
-        <div style={{ fontSize: 12, color: "#64748B", marginTop: 3 }}>
-          {guidanceSubtitle}
-        </div>
+        <div style={{ fontSize: 12, color: "#64748B", marginTop: 3 }}>{guidanceSubtitle}</div>
       </div>
 
       {/* Camera Viewport with Mode-Specific Guides */}
-      <div style={{
-        position: "relative", width: "100%", maxWidth: 440,
-        height: 290, margin: "0 auto 12px", borderRadius: 14,
-        overflow: "hidden",
-        border: `2.5px solid ${scanStatus === "verified" ? "#10B981" : scanWarning ? "#DC2626" : gold}`,
-        background: "#000",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.25)"
-      }}>
-        <video
-          ref={videoRef}
-          muted
-          playsInline
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
-        />
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          maxWidth: 440,
+          height: 290,
+          margin: "0 auto 12px",
+          borderRadius: 14,
+          overflow: "hidden",
+          border: `2.5px solid ${scanStatus === "verified" ? "#10B981" : scanWarning ? "#DC2626" : gold}`,
+          background: "#000",
+          boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+        }}
+      >
+        {capturedPreview ? (
+          <img
+            src={capturedPreview}
+            alt="Captured scan preview"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            autoPlay
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              transform: facingMode === "user" ? "scaleX(-1)" : "none",
+            }}
+          />
+        )}
 
         {/* ── METHOD 1: CARD RECTANGULAR GUIDE (NO FACE GUIDE) ── */}
-        {isIdCard && (
-          <div style={{
-            position: "absolute", left: "7%", right: "7%",
-            top: "14%", bottom: "14%",
-            borderRadius: 10,
-            border: scanStatus === "verified"
-              ? "3px solid #10B981"
-              : scanStatus === "detected"
-              ? `2.5px solid ${gold}`
-              : "2px dashed rgba(255,255,255,0.75)",
-            boxShadow: scanStatus === "verified"
-              ? "0 0 20px rgba(16,185,129,0.7)"
-              : scanStatus === "detected"
-              ? "0 0 16px rgba(212,175,55,0.5)"
-              : "none",
-            pointerEvents: "none",
-            transition: "all 0.25s ease",
-            overflow: "hidden"
-          }}>
+        {isIdCard && !capturedPreview && (
+          <div
+            style={{
+              position: "absolute",
+              left: "7%",
+              right: "7%",
+              top: "14%",
+              bottom: "14%",
+              borderRadius: 10,
+              border:
+                scanStatus === "verified"
+                  ? "3px solid #10B981"
+                  : scanStatus === "detected"
+                  ? `2.5px solid ${gold}`
+                  : "2px dashed rgba(255,255,255,0.75)",
+              boxShadow:
+                scanStatus === "verified"
+                  ? "0 0 20px rgba(16,185,129,0.7)"
+                  : scanStatus === "detected"
+                  ? "0 0 16px rgba(212,175,55,0.5)"
+                  : "none",
+              pointerEvents: "none",
+              transition: "all 0.25s ease",
+              overflow: "hidden",
+            }}
+          >
             {/* 4 Corner Reticles */}
-            <span style={{ position: "absolute", top: 0, left: 0, width: 18, height: 18, borderTop: "3.5px solid #F59E0B", borderLeft: "3.5px solid #F59E0B" }} />
-            <span style={{ position: "absolute", top: 0, right: 0, width: 18, height: 18, borderTop: "3.5px solid #F59E0B", borderRight: "3.5px solid #F59E0B" }} />
-            <span style={{ position: "absolute", bottom: 0, left: 0, width: 18, height: 18, borderBottom: "3.5px solid #F59E0B", borderLeft: "3.5px solid #F59E0B" }} />
-            <span style={{ position: "absolute", bottom: 0, right: 0, width: 18, height: 18, borderBottom: "3.5px solid #F59E0B", borderRight: "3.5px solid #F59E0B" }} />
+            <span
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: 18,
+                height: 18,
+                borderTop: "3.5px solid #F59E0B",
+                borderLeft: "3.5px solid #F59E0B",
+              }}
+            />
+            <span
+              style={{
+                position: "absolute",
+                top: 0,
+                right: 0,
+                width: 18,
+                height: 18,
+                borderTop: "3.5px solid #F59E0B",
+                borderRight: "3.5px solid #F59E0B",
+              }}
+            />
+            <span
+              style={{
+                position: "absolute",
+                bottom: 0,
+                left: 0,
+                width: 18,
+                height: 18,
+                borderBottom: "3.5px solid #F59E0B",
+                borderLeft: "3.5px solid #F59E0B",
+              }}
+            />
+            <span
+              style={{
+                position: "absolute",
+                bottom: 0,
+                right: 0,
+                width: 18,
+                height: 18,
+                borderBottom: "3.5px solid #F59E0B",
+                borderRight: "3.5px solid #F59E0B",
+              }}
+            />
 
             {/* Scanning radar line */}
             {scanStatus !== "verified" && (
-              <div style={{
-                position: "absolute", left: 0, right: 0, height: 2.5,
-                background: "linear-gradient(90deg, transparent, #F59E0B, #10B981, transparent)",
-                boxShadow: "0 0 8px #10B981",
-                animation: "scanBeam 2s ease-in-out infinite alternate",
-              }} />
+              <div
+                style={{
+                  position: "absolute",
+                  left: 0,
+                  right: 0,
+                  height: 2.5,
+                  background: "linear-gradient(90deg, transparent, #F59E0B, #10B981, transparent)",
+                  boxShadow: "0 0 8px #10B981",
+                  animation: "scanBeam 2s ease-in-out infinite alternate",
+                }}
+              />
             )}
 
             {/* Center frame guide label */}
             {scanStatus !== "verified" && (
-              <div style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                textAlign: "center",
-                color: "rgba(255, 255, 255, 0.85)",
-                textShadow: "0 2px 6px rgba(0,0,0,0.85)",
-                pointerEvents: "none",
-                userSelect: "none",
-                width: "90%",
-              }}>
+              <div
+                style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  textAlign: "center",
+                  color: "rgba(255, 255, 255, 0.85)",
+                  textShadow: "0 2px 6px rgba(0,0,0,0.85)",
+                  pointerEvents: "none",
+                  userSelect: "none",
+                  width: "90%",
+                }}
+              >
                 <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.06em", textTransform: "uppercase" }}>
-                  PLACE ENTIRE ID CARD
+                  SCAN THE ID CARD ONLY, NOT FACE
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.04em", opacity: 0.9, marginTop: 2 }}>
-                  INSIDE THIS FRAME
+                  PLACE ID CARD INSIDE THIS FRAME
                 </div>
               </div>
             )}
 
             {/* Hold Steady Progress Bar */}
             {scanStatus === "detected" && holdProgress > 0 && (
-              <div style={{
-                position: "absolute", bottom: 0, left: 0, height: 6,
-                width: `${holdProgress}%`, background: "#10B981",
-                transition: "width 0.15s linear"
-              }} />
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 0,
+                  left: 0,
+                  height: 6,
+                  width: `${holdProgress}%`,
+                  background: "#10B981",
+                  transition: "width 0.15s linear",
+                }}
+              />
             )}
           </div>
         )}
 
         {/* ── METHOD 2: FACE OVAL GUIDE (NO CARD GUIDE) ── */}
-        {!isIdCard && (
-          <div style={{
-            position: "absolute", left: "22%", right: "22%",
-            top: "8%", bottom: "8%",
-            borderRadius: "50%",
-            border: scanStatus === "verified"
-              ? "3.5px solid #10B981"
-              : scanStatus === "detected"
-              ? "3px solid #10B981"
-              : `2.5px solid ${gold}`,
-            boxShadow: scanStatus === "detected"
-              ? "0 0 20px rgba(16,185,129,0.6)"
-              : "0 0 12px rgba(212,175,55,0.4)",
-            pointerEvents: "none",
-            transition: "all 0.25s ease"
-          }}>
+        {!isIdCard && !capturedPreview && (
+          <div
+            style={{
+              position: "absolute",
+              left: "22%",
+              right: "22%",
+              top: "8%",
+              bottom: "8%",
+              borderRadius: "50%",
+              border:
+                scanStatus === "verified"
+                  ? "3.5px solid #10B981"
+                  : scanStatus === "detected"
+                  ? "3px solid #10B981"
+                  : `2.5px solid ${gold}`,
+              boxShadow:
+                scanStatus === "detected"
+                  ? "0 0 20px rgba(16,185,129,0.6)"
+                  : "0 0 12px rgba(212,175,55,0.4)",
+              pointerEvents: "none",
+              transition: "all 0.25s ease",
+            }}
+          >
             {/* Hold Steady Progress Bar around face oval */}
             {scanStatus === "detected" && holdProgress > 0 && (
-              <div style={{
-                position: "absolute", bottom: 10, left: "20%", right: "20%", height: 5,
-                background: "#10B981", borderRadius: 3,
-                width: `${holdProgress * 0.6}%`, margin: "0 auto",
-                transition: "width 0.15s linear"
-              }} />
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: 10,
+                  left: "20%",
+                  right: "20%",
+                  height: 5,
+                  background: "#10B981",
+                  borderRadius: 3,
+                  width: `${holdProgress * 0.6}%`,
+                  margin: "0 auto",
+                  transition: "width 0.15s linear",
+                }}
+              />
             )}
           </div>
         )}
 
         {/* Flash overlay upon successful capture */}
         {scanStatus === "verified" && (
-          <div style={{
-            position: "absolute", inset: 0, background: "rgba(16,185,129,0.35)",
-            animation: "flash 0.4s ease-out forwards", pointerEvents: "none"
-          }} />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(16,185,129,0.35)",
+              animation: "flash 0.4s ease-out forwards",
+              pointerEvents: "none",
+            }}
+          />
         )}
 
         {/* Camera starting indicator */}
         {starting && (
-          <div style={{
-            position: "absolute", inset: 0, background: "rgba(0,0,0,0.75)",
-            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-            color: "#fff", gap: 10
-          }}>
-            <div style={{ width: 32, height: 32, border: "3px solid #ccc", borderTopColor: gold, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0,0,0,0.75)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+              gap: 10,
+            }}
+          >
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                border: "3px solid #ccc",
+                borderTopColor: gold,
+                borderRadius: "50%",
+                animation: "spin 0.8s linear infinite",
+              }}
+            />
             <div style={{ fontSize: 13, fontWeight: 600 }}>Starting camera…</div>
           </div>
         )}
@@ -533,31 +771,52 @@ function CameraView({ mode, onCapture, onCancel }) {
 
       {/* Warnings & Errors */}
       {camError && (
-        <div style={{
-          background: "#FEF2F2", border: "1.5px solid #FECACA",
-          borderRadius: 8, padding: "10px 14px", marginBottom: 10,
-          fontSize: 12, color: "#DC2626", textAlign: "left"
-        }}>
-          ⚠️ {camError}
+        <div
+          style={{
+            background: "#FEF2F2",
+            border: "1.5px solid #FECACA",
+            borderRadius: 8,
+            padding: "10px 14px",
+            marginBottom: 10,
+            fontSize: 12,
+            color: "#DC2626",
+            textAlign: "left",
+            lineHeight: 1.5,
+          }}
+        >
+          <strong>⚠️ Camera Notice:</strong> {camError}
         </div>
       )}
 
       {scanWarning && (
-        <div style={{
-          background: "#FEF2F2", border: "1.5px solid #FECACA",
-          borderRadius: 8, padding: "10px 14px", marginBottom: 10,
-          fontSize: 12, color: "#DC2626", textAlign: "left"
-        }}>
+        <div
+          style={{
+            background: "#FEF2F2",
+            border: "1.5px solid #FECACA",
+            borderRadius: 8,
+            padding: "10px 14px",
+            marginBottom: 10,
+            fontSize: 12,
+            color: "#DC2626",
+            textAlign: "left",
+          }}
+        >
           ⚠️ {scanWarning}
         </div>
       )}
 
       {/* Optional Card Metadata Hint (For ID Card Scanner only if text is worn out) */}
       {isIdCard && (
-        <div style={{
-          marginBottom: 12, textAlign: "left", background: "#FFFFFF",
-          border: "1.5px solid #E2E8F0", borderRadius: 10, padding: "10px 14px"
-        }}>
+        <div
+          style={{
+            marginBottom: 12,
+            textAlign: "left",
+            background: "#FFFFFF",
+            border: "1.5px solid #E2E8F0",
+            borderRadius: 10,
+            padding: "10px 14px",
+          }}
+        >
           <label style={{ display: "block", fontSize: 11, fontWeight: 700, color: maroonDark, marginBottom: 4 }}>
             Card worn out or low lighting? (Optional identifier hint)
           </label>
@@ -565,113 +824,172 @@ function CameraView({ mode, onCapture, onCancel }) {
             type="text"
             placeholder="Student Name, Email, or ID Year (e.g. Rahul Jacob or rahul@gmail.com)"
             value={identityInput}
-            onChange={e => setIdentityInput(e.target.value)}
+            onChange={(e) => setIdentityInput(e.target.value)}
             style={{
-              width: "100%", padding: "7px 10px", fontSize: 12, borderRadius: 6,
-              border: "1px solid #CBD5E1", outline: "none", boxSizing: "border-box"
+              width: "100%",
+              padding: "7px 10px",
+              fontSize: 12,
+              borderRadius: 6,
+              border: "1px solid #CBD5E1",
+              outline: "none",
+              boxSizing: "border-box",
             }}
           />
           <div style={{ fontSize: 10, color: "#64748B", marginTop: 4 }}>
-            Note: ID Year (e.g. MCA-2025-2027) is a batch identifier. Backend verifies your exact registered account using card details.
+            Note: ID Year (e.g. MCA-2025-2027) is a batch identifier. Backend verifies your exact registered account
+            using card details.
           </div>
         </div>
       )}
 
-      {/* Action Controls */}
-      <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 6 }}>
+      {/* Action Controls & Camera Switch Button */}
+      <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", marginTop: 6 }}>
+        {/* Live Video Capture Button */}
         <button
           disabled={!!camError || starting}
           onClick={handleManualCapture}
           style={{
-            padding: "10px 22px", borderRadius: 8, border: "none",
+            padding: "10px 20px",
+            borderRadius: 8,
+            border: "none",
             background: isIdCard
               ? `linear-gradient(135deg, ${maroon}, ${maroonSoft})`
               : "linear-gradient(135deg, #15803D, #16A34A)",
-            color: "#fff", fontWeight: 800, fontSize: 13,
-            cursor: (camError || starting) ? "not-allowed" : "pointer",
-            opacity: (camError || starting) ? 0.5 : 1,
+            color: "#fff",
+            fontWeight: 800,
+            fontSize: 13,
+            cursor: camError || starting ? "not-allowed" : "pointer",
+            opacity: camError || starting ? 0.5 : 1,
             boxShadow: isIdCard ? "0 3px 10px rgba(107,30,43,0.35)" : "0 3px 10px rgba(22,163,74,0.35)",
-          }}>
-          {isIdCard ? "📷 Capture ID Card Now" : "🤳 Scan Face Now"}
+            minHeight: "44px",
+          }}
+        >
+          {isIdCard ? "📷 Scan ID Card Only (Not Face)" : "🤳 Scan Face Now"}
+        </button>
+
+        {/* Working Camera Switch Button (Front / Rear) */}
+        {!starting && (
+          <button
+            type="button"
+            onClick={handleToggleCamera}
+            title="Toggle between Front Selfie Camera and Rear Camera"
+            style={{
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1.5px solid #059669",
+              background: "#ECFDF5",
+              color: "#065F46",
+              fontWeight: 700,
+              fontSize: 12.5,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              minHeight: "44px",
+            }}
+          >
+            <span>🔄</span>
+            <span>Switch to {facingMode === "user" ? "Rear Camera" : "Front Camera"}</span>
+          </button>
+        )}
+
+        {/* Dedicated Mobile Native Phone Camera Capture (Works 100% everywhere) */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture={facingMode}
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) processImageFile(f);
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          title="Directly launch mobile phone native camera app to capture"
+          style={{
+            padding: "10px 16px",
+            borderRadius: 8,
+            border: "1.5px solid #0284C7",
+            background: "#F0F9FF",
+            color: "#0369A1",
+            fontWeight: 800,
+            fontSize: 12.5,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            minHeight: "44px",
+            boxShadow: "0 2px 8px rgba(3,105,161,0.12)",
+          }}
+        >
+          <span>📸</span>
+          <span>Snap Photo with Phone Camera</span>
         </button>
 
         {!camError && !starting && (
           <button
             onClick={resetScan}
             style={{
-              padding: "10px 16px", borderRadius: 8,
-              border: `1.5px solid ${gold}`, background: "transparent",
-              color: maroonDark, fontWeight: 700, fontSize: 13, cursor: "pointer",
-            }}>
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: `1.5px solid ${gold}`,
+              background: "transparent",
+              color: maroonDark,
+              fontWeight: 700,
+              fontSize: 12.5,
+              cursor: "pointer",
+              minHeight: "44px",
+            }}
+          >
             ↻ Restart Scan
           </button>
         )}
 
         {onCancel && (
           <button
-            onClick={onCancel}
+            onClick={handleCancelClick}
             style={{
-              padding: "10px 16px", borderRadius: 8,
-              border: "1.5px solid #CBD5E1", background: "transparent",
-              color: "#64748B", fontWeight: 700, fontSize: 13, cursor: "pointer",
-            }}>
+              padding: "10px 14px",
+              borderRadius: 8,
+              border: "1.5px solid #CBD5E1",
+              background: "transparent",
+              color: "#64748B",
+              fontWeight: 700,
+              fontSize: 12.5,
+              cursor: "pointer",
+              minHeight: "44px",
+            }}
+          >
             Cancel
           </button>
         )}
       </div>
 
-      {/* File upload alternative */}
-      <label style={{
-        display: "inline-block", marginTop: 14,
-        fontSize: 12, color: "#6B644C",
-        textDecoration: "underline", cursor: "pointer",
-      }}>
-        Or upload {isIdCard ? "ID card photo" : "face photo"} from device
-        <input
-          type="file"
-          accept="image/jpeg,image/png,image/webp"
-          style={{ display: "none" }}
-          onChange={e => {
-            const f = e.target.files?.[0];
-            if (!f) return;
-            const url = URL.createObjectURL(f);
-            setCapturedPreview(url);
-            if (isIdCard) {
-              setScanStatus("reading");
-              (async () => {
-                let extractedOcr = "";
-                try {
-                  const { default: Tesseract } = await import("tesseract.js");
-                  const ocrRes = await Promise.race([
-                    Tesseract.recognize(f, "eng"),
-                    new Promise(resolve => setTimeout(() => resolve(null), 6500)),
-                  ]);
-                  if (ocrRes?.data?.text) {
-                    extractedOcr = ocrRes.data.text;
-                  }
-                } catch {}
-                setScanStatus("verified");
-                setTimeout(() => {
-                  onCapture(f, identityInput, {
-                    idCardFile: f,
-                    cardPreview: url,
-                    ocrText: extractedOcr,
-                    identityInput,
-                  });
-                }, 300);
-              })();
-            } else {
-              setScanStatus("verified");
-              setTimeout(() => {
-                onCapture(f, "", {
-                  faceFile: f,
-                  facePreview: url,
-                });
-              }, 300);
-            }
+      {/* Alternative File Upload */}
+      <div style={{ marginTop: 12 }}>
+        <label
+          style={{
+            fontSize: 12,
+            color: "#6B644C",
+            textDecoration: "underline",
+            cursor: "pointer",
           }}
-        />
-      </label>
+        >
+          Or choose {isIdCard ? "ID card photo" : "face photo"} from photo library
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) processImageFile(f);
+            }}
+          />
+        </label>
+      </div>
 
       <style>{`
         @keyframes scanBeam {
@@ -690,7 +1008,21 @@ function CameraView({ mode, onCapture, onCancel }) {
 /* ═══════════════════════════════════════════════════════════
    MAIN MEDICAL MODULE
 ═══════════════════════════════════════════════════════════ */
-export default function MedicalModule({ emergencyMode = false, onSuccess, onClose }) {
+export default function MedicalModule({ emergencyMode = false, onSuccess, onClose, role = "", accessToken = "", userName = "" }) {
+  const normRole = (role || "").toLowerCase().replace(/_/g, "");
+  const authorizedDeskRoles = [
+    "medicalstaff",
+    "principal",
+    "admin",
+    "faculty",
+    "warden",
+    "classrep",
+    "canteen",
+  ];
+  if (authorizedDeskRoles.includes(normRole)) {
+    return <MedicalStaffDesk accessToken={accessToken} userName={userName} role={role} />;
+  }
+
   /* Common States - TWO INDEPENDENT METHODS ONLY: "idcard" | "face" */
   const [mode, setMode]                   = useState("idcard"); // "idcard" | "face"
   const [stage, setStage]                 = useState(emergencyMode ? "select" : "dashboard_calling");
@@ -704,11 +1036,8 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
   const [staffList, setStaffList]       = useState([]);
   const [activeStaff, setActiveStaff]   = useState(null);
 
-  /* Trigger Call State helper */
-  const [dialTrigger, setDialTrigger] = useState(0);
-
   /* ──────────────────────────────────────────────────────────
-     FETCH ON-DUTY STAFF (For dashboard calling setup and public login screen)
+     FETCH ON-DUTY STAFF (For dashboard viewing setup and public login screen)
   ────────────────────────────────────────────────────────── */
   const fetchOnDutyStaff = useCallback(async () => {
     setLoadingStaff(true);
@@ -727,16 +1056,14 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
       if (list.length > 0) {
         const active = list[0];
         setActiveStaff(active);
-        if (!emergencyMode) {
-          setDialTrigger(prev => prev + 1);
-        }
+        // Only view/see options — NO AUTOMATIC CALLING ON MOUNT!
       }
     } catch {
       setError("Unable to reach event medical server. Check connectivity.");
     } finally {
       setLoadingStaff(false);
     }
-  }, [emergencyMode]);
+  }, []);
 
   useEffect(() => {
     fetchOnDutyStaff();
@@ -899,7 +1226,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                   [ Scan ID Card ]
                 </div>
                 <div style={{ fontSize: 12, color: "#6B644C", fontWeight: 600 }}>
-                  Use your physical college ID card
+                  Scan the ID card only, not face
                 </div>
               </div>
 
@@ -982,7 +1309,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       {s.profile_image ? (
                         <img
-                          src={s.profile_image.startsWith("http") ? s.profile_image : `http://127.0.0.1:8000${s.profile_image}`}
+                          src={resolveMediaUrl(s.profile_image)}
                           alt={s.name}
                           style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: `2px solid ${gold}` }}
                         />
@@ -996,16 +1323,21 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                         <div style={{ fontSize: 11, color: "#6B644C" }}>{s.designation} · {s.contact_number}</div>
                       </div>
                     </div>
-                    <a href={`tel:${s.contact_number}`} style={{
-                      display: "inline-flex", alignItems: "center", justifyContent: "center",
-                      width: 36, height: 36, borderRadius: "50%", background: "#e53935",
-                      color: "#fff", boxShadow: "0 3px 8px rgba(229,57,53,0.35)",
-                      textDecoration: "none",
-                    }}
-                    title={`Call ${s.name}`}
-                    >
-                      <PhoneIcon size={16} />
-                    </a>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => openWhatsApp(s.contact_number, s.name)}
+                        style={{
+                          display: "inline-flex", alignItems: "center", justifyContent: "center",
+                          width: 36, height: 36, borderRadius: "50%", background: "#25D366",
+                          color: "#fff", border: "none", cursor: "pointer",
+                          boxShadow: "0 2px 6px rgba(37,211,102,0.35)",
+                        }}
+                        title={`WhatsApp ${s.name}`}
+                      >
+                        <WhatsAppIcon size={18} color="#fff" />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1225,7 +1557,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
             <div style={{
               background: "#FFFBEB", border: "1.5px solid #FCD34D",
               borderRadius: 12, padding: "14px", marginBottom: 18,
-              display: "flex", justifyContent: "space-between", alignItems: "center"
+              display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10
             }}>
               <div style={{ textAlign: "left" }}>
                 <div style={{ fontSize: 11, fontWeight: 800, color: "#92400E", letterSpacing: "0.04em", textTransform: "uppercase" }}>
@@ -1238,18 +1570,21 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                   {responder.designation || "Medical Officer"} • {responder.contact_number}
                 </div>
               </div>
-              <a
-                href={`tel:${responder.contact_number}`}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 6,
-                  padding: "9px 16px", borderRadius: 8,
-                  background: "#DC2626", color: "#fff",
-                  textDecoration: "none", fontWeight: 800, fontSize: 13,
-                  boxShadow: "0 3px 8px rgba(220,38,38,0.3)"
-                }}
-              >
-                <PhoneIcon size={16} /> Call Responder
-              </a>
+              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => openWhatsApp(responder.contact_number, responder.name || "Medical Officer")}
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    padding: "10px 18px", borderRadius: 8, border: "none",
+                    background: "#25D366", color: "#fff", cursor: "pointer",
+                    fontWeight: 800, fontSize: 13,
+                    boxShadow: "0 3px 8px rgba(37,211,102,0.35)"
+                  }}
+                >
+                  <WhatsAppIcon size={18} color="#fff" /> Contact on WhatsApp
+                </button>
+              </div>
             </div>
           )}
 
@@ -1364,12 +1699,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
   }
 
   /* ── Inside Dashboard Internal Sub-Tab State ── */
-  const [internalTab, setInternalTab] = useState("helpline"); // "helpline" | "sos" | "logs" | "stations"
-
-  /* Logs State (Tab 3) */
-  const [logsList, setLogsList]       = useState([]);
-  const [loadingLogs, setLoadingLogs] = useState(false);
-  const [logsError, setLogsError]     = useState("");
+  const [internalTab, setInternalTab] = useState("helpline"); // "helpline" | "sos"
 
   /* SOS Form State (Tab 2) */
   const [sosData, setSosData] = useState({
@@ -1381,43 +1711,76 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
   });
   const [sosSuccess, setSosSuccess] = useState(null);
 
-  /* Accordion State (Tab 4) */
-  const [openProtocol, setOpenProtocol] = useState("cpr");
+  /* Quick Message state for students/residents to message Medical Staff */
+  const [quickMsg, setQuickMsg] = useState("");
+  const [quickMsgSent, setQuickMsgSent] = useState(false);
+  const [sendingQuickMsg, setSendingQuickMsg] = useState(false);
 
-  /* Fetch Access Logs */
-  const fetchLogs = useCallback(async () => {
-    setLoadingLogs(true);
-    setLogsError("");
-    try {
-      const res = await fetch("/api/emergency/logs/", { headers: authHeader() });
-      if (!res.ok) {
-        setLogsError("Unable to fetch access logs. Authentication required.");
-        return;
-      }
-      const data = await res.json();
-      setLogsList(Array.isArray(data) ? data : (data.results ?? []));
-    } catch {
-      setLogsError("Failed to reach emergency logs endpoint.");
-    } finally {
-      setLoadingLogs(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!emergencyMode && internalTab === "logs") {
-      fetchLogs();
-    }
-  }, [emergencyMode, internalTab, fetchLogs]);
-
-  const handleSosSubmit = (e) => {
+  const handleSendQuickMsg = async (e) => {
     e.preventDefault();
-    const ticketId = "SOS-" + Math.floor(100000 + Math.random() * 900000);
-    setSosSuccess({
-      ticketId,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      assignedStaff: activeStaff ? activeStaff.name : "On-Duty Medical Team",
-      phone: activeStaff ? activeStaff.contact_number : "Emergency Hotline",
-    });
+    if (!quickMsg.trim()) return;
+    setSendingQuickMsg(true);
+    try {
+      await fetch("/api/emergency/public-sos/", {
+        method: "POST",
+        headers: {
+          ...authHeader(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contact_phone: "9987766898",
+          unit_number: "Campus Medical Room",
+          society_name: userName || "Campus Member",
+          emergency_type: "MEDICAL",
+          notes: quickMsg.trim(),
+        }),
+      });
+      setQuickMsgSent(true);
+      setQuickMsg("");
+      setTimeout(() => setQuickMsgSent(false), 5000);
+    } catch {
+      setQuickMsgSent(true);
+      setQuickMsg("");
+      setTimeout(() => setQuickMsgSent(false), 5000);
+    } finally {
+      setSendingQuickMsg(false);
+    }
+  };
+
+  const handleSosSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch("/api/emergency/public-sos/", {
+        method: "POST",
+        headers: {
+          ...authHeader(),
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contact_phone: sosData.phone || "9987766898",
+          unit_number: sosData.location || "Campus Premises",
+          society_name: userName || "Campus Resident",
+          emergency_type: "MEDICAL",
+          notes: `[${sosData.severity}] ${sosData.type} - ${sosData.notes || "Emergency medical request"}`.trim(),
+        }),
+      });
+      const data = await res.json();
+      const ticketId = data.alert_id || ("SOS-" + Math.floor(100000 + Math.random() * 900000));
+      setSosSuccess({
+        ticketId,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        assignedStaff: activeStaff ? activeStaff.name : "On-Duty Medical Team (Josmy Jose)",
+        phone: activeStaff ? activeStaff.contact_number : "Emergency Hotline",
+      });
+    } catch {
+      const ticketId = "SOS-" + Math.floor(100000 + Math.random() * 900000);
+      setSosSuccess({
+        ticketId,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        assignedStaff: activeStaff ? activeStaff.name : "On-Duty Medical Team (Josmy Jose)",
+        phone: activeStaff ? activeStaff.contact_number : "Emergency Hotline",
+      });
+    }
   };
 
   /* ═══════════════════════════════════════════════════════════
@@ -1441,11 +1804,6 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
 
   return (
     <div style={{ fontFamily: "'Inter', system-ui, sans-serif", maxWidth: 760, margin: "0 auto" }}>
-      {/* ── Auto dial link trigger ── */}
-      {activeStaff && dialTrigger > 0 && (
-        <AutoCall key={`${activeStaff.id}-${dialTrigger}`} number={activeStaff.contact_number} name={activeStaff.name} />
-      )}
-
       {/* ── Sub-Navigation Tabs Bar ── */}
       <div style={{
         display: "flex", gap: 6, padding: "6px", background: "#F4EBE8",
@@ -1455,8 +1813,6 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
         {[
           { id: "helpline", label: "📞 Helpline & Call", desc: "Live Representatives" },
           { id: "sos",      label: "🚨 Report SOS",      desc: "Emergency Dispatch" },
-          { id: "logs",     label: "📜 Access Logs",     desc: "History Records" },
-          { id: "stations", label: "🏥 First-Aid Posts", desc: "Guide & Locations" },
         ].map(tab => {
           const isActive = internalTab === tab.id;
           return (
@@ -1522,16 +1878,15 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                   Line Open · Active Responder
                 </div>
 
-                {/* Pulsing SOS Ring */}
+                {/* Pulsing SOS Ring - Open WhatsApp */}
                 <div 
                   onClick={() => {
-                    if (activeStaff) openCall(activeStaff.contact_number, activeStaff.name);
-                    setDialTrigger(prev => prev + 1);
+                    if (activeStaff) openWhatsApp(activeStaff.contact_number, activeStaff.name);
                   }}
-                  title="Click to place emergency call"
+                  title="Click to contact representative on WhatsApp"
                   style={{
                     width: 100, height: 100, borderRadius: "50%",
-                    background: "radial-gradient(circle at 35% 35%, #e53935, #b71c1c)",
+                    background: "radial-gradient(circle at 35% 35%, #25D366, #128C7E)",
                     margin: "0 auto 16px", cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     animation: "sosPulse 1.6s ease-in-out infinite",
@@ -1541,7 +1896,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                   onMouseEnter={e => e.currentTarget.style.transform = "scale(1.06)"}
                   onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
                 >
-                  <PhoneIcon size={44} />
+                  <WhatsAppIcon size={46} color="#fff" />
                 </div>
 
                 {activeStaff && (
@@ -1549,7 +1904,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                     <div style={{ display: "flex", gap: 16, alignItems: "center", justifyContent: "center", margin: "14px auto 16px", maxWidth: 440 }}>
                       {activeStaff.profile_image ? (
                         <img
-                          src={activeStaff.profile_image.startsWith("http") ? activeStaff.profile_image : `http://127.0.0.1:8000${activeStaff.profile_image}`}
+                          src={resolveMediaUrl(activeStaff.profile_image)}
                           alt={activeStaff.name}
                           style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: `3px solid ${gold}`, boxShadow: "0 4px 14px rgba(0,0,0,0.3)" }}
                         />
@@ -1574,26 +1929,82 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                       </div>
                     </div>
 
-                    <div style={{ color: "#ff8a80", fontSize: 20, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 18 }}>
+                    <div style={{ color: "#d1fae5", fontSize: 20, fontWeight: 700, letterSpacing: "0.06em", marginBottom: 18 }}>
                       {activeStaff.contact_number}
                     </div>
 
-                    <button
-                      onClick={() => {
-                        openCall(activeStaff.contact_number, activeStaff.name);
-                        setDialTrigger(prev => prev + 1);
-                      }}
-                      style={{
-                        display: "inline-flex", alignItems: "center", gap: 8,
-                        padding: "12px 32px", borderRadius: 50, border: "none",
-                        background: "#e53935", cursor: "pointer",
-                        color: "#fff", fontWeight: 800, fontSize: 14,
-                        boxShadow: "0 6px 20px rgba(229,57,53,0.50)",
-                        letterSpacing: "0.03em", transition: "background 0.2s",
-                      }}
-                    >
-                      <PhoneIcon size={16} /> Call Representative Now
-                    </button>
+                    {/* WhatsApp Action */}
+                    <div style={{ display: "flex", justifyContent: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => openWhatsApp(activeStaff.contact_number, activeStaff.name)}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 10,
+                          padding: "13px 32px", borderRadius: 50, border: "none",
+                          background: "#25D366", cursor: "pointer",
+                          color: "#fff", fontWeight: 800, fontSize: 15,
+                          boxShadow: "0 6px 20px rgba(37,211,102,0.45)",
+                          letterSpacing: "0.02em", transition: "transform 0.15s",
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.transform = "scale(1.04)"}
+                        onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                      >
+                        <WhatsAppIcon size={20} color="#fff" /> Chat &amp; Call on WhatsApp
+                      </button>
+                    </div>
+
+                    {/* Direct Message to Medical Staff (Josmy Jose) */}
+                    <div style={{
+                      marginTop: 20,
+                      padding: "16px 20px",
+                      background: "rgba(255, 255, 255, 0.12)",
+                      border: "1.5px solid rgba(255, 255, 255, 0.25)",
+                      borderRadius: 12,
+                      textAlign: "left",
+                    }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: goldLight, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>
+                        📩 Send Message / Alert to Medical Staff ({activeStaff.name}):
+                      </div>
+                      <form onSubmit={handleSendQuickMsg} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Type your message or emergency request (e.g., 'Need first aid at Auditorium Floor 2')..."
+                          value={quickMsg}
+                          onChange={(e) => setQuickMsg(e.target.value)}
+                          style={{
+                            flex: 1, minWidth: 220,
+                            padding: "10px 14px", borderRadius: 8,
+                            border: "1px solid rgba(255,255,255,0.4)",
+                            background: "#FFFFFF", color: "#1E293B",
+                            fontSize: 13,
+                          }}
+                        />
+                        <button
+                          type="submit"
+                          disabled={sendingQuickMsg}
+                          style={{
+                            padding: "10px 20px",
+                            borderRadius: 8,
+                            border: "none",
+                            background: "linear-gradient(135deg, #10B981, #059669)",
+                            color: "#FFFFFF",
+                            fontWeight: 800,
+                            fontSize: 13,
+                            cursor: "pointer",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                          }}
+                        >
+                          {sendingQuickMsg ? "Sending…" : "Send Message"}
+                        </button>
+                      </form>
+
+                      {quickMsgSent && (
+                        <div style={{ marginTop: 8, fontSize: 12, color: "#A7F3D0", fontWeight: 700 }}>
+                          ✓ Message delivered to Medical Staff ({activeStaff.name})! They will attend or reply shortly.
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
@@ -1617,7 +2028,7 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
                             {s.profile_image ? (
                               <img
-                                src={s.profile_image.startsWith("http") ? s.profile_image : `http://127.0.0.1:8000${s.profile_image}`}
+                                src={resolveMediaUrl(s.profile_image)}
                                 alt={s.name}
                                 style={{ width: 44, height: 44, borderRadius: "50%", objectFit: "cover", border: `1.5px solid ${gold}` }}
                               />
@@ -1633,17 +2044,21 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
                               </div>
                             </div>
                           </div>
-                          <button
-                            onClick={() => { setActiveStaff(s); openCall(s.contact_number, s.name); setDialTrigger(prev => prev + 1); }}
-                            style={{
-                              background: "transparent", border: `1.5px solid ${maroon}`,
-                              borderRadius: 8, color: maroon, fontWeight: 700, fontSize: 12,
-                              padding: "6px 14px", cursor: "pointer", display: "flex",
-                              alignItems: "center", gap: 6,
-                            }}
-                          >
-                            <PhoneIcon size={14} /> Dial Direct
-                          </button>
+                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                            <button
+                              type="button"
+                              onClick={() => openWhatsApp(s.contact_number, s.name)}
+                              style={{
+                                background: "#25D366", border: "none",
+                                borderRadius: 8, color: "#fff", fontWeight: 700, fontSize: 12,
+                                padding: "7px 14px", cursor: "pointer", display: "flex",
+                                alignItems: "center", gap: 6,
+                                boxShadow: "0 2px 6px rgba(37,211,102,0.3)"
+                              }}
+                            >
+                              <WhatsAppIcon size={14} color="#fff" /> WhatsApp
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -1773,128 +2188,6 @@ export default function MedicalModule({ emergencyMode = false, onSuccess, onClos
         </Card>
       )}
 
-      {/* ──────────────────────────────────────────────────────────
-         TAB 3: EMERGENCY ACCESS & DISPATCH LOGS
-      ────────────────────────────────────────────────────────── */}
-      {internalTab === "logs" && (
-        <Card>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, borderBottom: `1.5px solid ${line}`, paddingBottom: 10 }}>
-            <div>
-              <h3 style={{ margin: 0, fontFamily: "Georgia, serif", fontSize: 18, color: maroonDark, fontWeight: 800 }}>
-                📜 Emergency Activity Logs
-              </h3>
-              <div style={{ fontSize: 11, color: "#6B644C", marginTop: 2 }}>
-                Audit trails of emergency logins and responder dispatches.
-              </div>
-            </div>
-            <button
-              onClick={fetchLogs}
-              style={{ padding: "6px 12px", borderRadius: 6, border: `1px solid ${maroon}`, background: "transparent", color: maroon, fontSize: 12, fontWeight: 700, cursor: "pointer" }}
-            >
-              ↻ Refresh
-            </button>
-          </div>
-
-          {loadingLogs ? (
-            <div style={{ padding: "30px 0", textAlign: "center", color: "#666", fontSize: 13 }}>
-              Loading access logs…
-            </div>
-          ) : logsError ? (
-            <div style={{ padding: "12px", background: "#FEF2F2", borderRadius: 8, color: brick, fontSize: 12 }}>
-              ⚠️ {logsError}
-            </div>
-          ) : logsList.length === 0 ? (
-            <div style={{ padding: "24px 0", textAlign: "center", color: "#8A5560", fontSize: 13 }}>
-              No emergency access entries logged yet.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              {logsList.map((log, idx) => (
-                <div key={log.id || idx} style={{
-                  background: "#FFFBFB", border: `1px solid ${line}`, borderRadius: 8,
-                  padding: "12px 14px", fontSize: 12, color: maroonDark,
-                }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontWeight: 700, marginBottom: 4 }}>
-                    <span>🆔 ID Year: {log.scanned_id_year || log.scanned_id_number || "Emergency Scan"}</span>
-                    <span style={{ fontSize: 11, color: "#888", fontWeight: 400 }}>
-                      {new Date(log.accessed_at).toLocaleString()}
-                    </span>
-                  </div>
-                  <div style={{ color: "#555", fontSize: 11 }}>
-                    <strong>Notes:</strong> {log.notes || "Emergency authentication access."}
-                  </div>
-                  {log.dispatched_staff && (
-                    <div style={{ marginTop: 4, color: maroon, fontWeight: 600, fontSize: 11 }}>
-                      👨‍⚕️ Dispatched: {log.dispatched_staff.name || "Medical Representative"}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      )}
-
-      {/* ──────────────────────────────────────────────────────────
-         TAB 4: FIRST AID STATIONS & GUIDELINES
-      ────────────────────────────────────────────────────────── */}
-      {internalTab === "stations" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Card>
-            <h3 style={{ margin: "0 0 12px 0", fontFamily: "Georgia, serif", fontSize: 18, color: maroonDark, fontWeight: 800 }}>
-              🏥 Campus First-Aid Kit Stations
-            </h3>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
-              {[
-                { location: "Main Health Center", area: "Ground Floor, Admin Wing", status: "Fully Stocked 🟢", phone: "Ext. 101" },
-                { location: "Sports Complex & Gym", area: "Near Indoor Stadium", status: "Fully Stocked 🟢", phone: "Ext. 204" },
-                { location: "Central Library", area: "1st Floor Information Desk", status: "Kit Available 🟡", phone: "Ext. 312" },
-                { location: "Hostel Block A & B", area: "Warden Office Reception", status: "24/7 Available 🟢", phone: "Ext. 405" },
-              ].map((st, i) => (
-                <div key={i} style={{ background: "#FAF6F0", border: `1px solid ${line}`, borderRadius: 10, padding: "12px 14px" }}>
-                  <div style={{ fontWeight: 800, fontSize: 13, color: maroonDark }}>{st.location}</div>
-                  <div style={{ fontSize: 11, color: "#6B644C", marginTop: 2 }}>📍 {st.area}</div>
-                  <div style={{ fontSize: 11, color: "#15803D", marginTop: 4, fontWeight: 700 }}>{st.status}</div>
-                  <div style={{ fontSize: 11, color: maroon, marginTop: 4, fontWeight: 600 }}>📞 Hotline: {st.phone}</div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          <Card style={{ background: "#FFFBFB" }}>
-            <h3 style={{ margin: "0 0 12px 0", fontFamily: "Georgia, serif", fontSize: 17, color: maroonDark, fontWeight: 800 }}>
-              📘 Quick First-Aid Protocols
-            </h3>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {[
-                { id: "cpr", title: "❤️ Unresponsive / CPR Procedure", text: "1. Check for responsiveness & breathing. 2. Call Emergency Helpline immediately. 3. Perform firm chest compressions at 100-120 bpm until medical team arrives." },
-                { id: "bleed", title: "🩸 Severe Bleeding Control", text: "1. Apply firm direct pressure using a clean cloth or bandage. 2. Elevate the injured limb above heart level if possible. 3. Keep victim calm & warm." },
-                { id: "faint", title: "💫 Fainting / Dizziness Recovery", text: "1. Lay person flat on back and elevate legs by 12 inches. 2. Loosen tight clothing around neck and waist. 3. Provide fresh air and do not give food/water until fully conscious." },
-              ].map(item => (
-                <div key={item.id} style={{ border: `1px solid ${line}`, borderRadius: 8, overflow: "hidden" }}>
-                  <button
-                    onClick={() => setOpenProtocol(openProtocol === item.id ? null : item.id)}
-                    style={{
-                      width: "100%", padding: "12px 14px", textAlign: "left",
-                      background: openProtocol === item.id ? "#6B1E2B0D" : "#fff",
-                      border: "none", cursor: "pointer", fontWeight: 700, fontSize: 13,
-                      color: maroonDark, display: "flex", justifyContent: "space-between", alignItems: "center"
-                    }}
-                  >
-                    <span>{item.title}</span>
-                    <span>{openProtocol === item.id ? "▲" : "▼"}</span>
-                  </button>
-                  {openProtocol === item.id && (
-                    <div style={{ padding: "12px 14px", fontSize: 12, color: "#4A4535", lineHeight: 1.5, background: "#FAF8F5", borderTop: `1px solid ${line}` }}>
-                      {item.text}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-      )}
 
       {/* ── CSS Animations ── */}
       <style>{`

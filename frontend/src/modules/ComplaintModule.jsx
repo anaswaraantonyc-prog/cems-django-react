@@ -38,9 +38,12 @@ const INITIAL_COMPLAINTS = [
   },
 ];
 
-function authHeader() {
+function authHeader(activeRole) {
   const token = localStorage.getItem("cems_access") || "";
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const headers = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  if (activeRole) headers["X-Role"] = activeRole;
+  return headers;
 }
 
 export default function ComplaintModule({ role = "student" }) {
@@ -65,7 +68,7 @@ export default function ComplaintModule({ role = "student" }) {
       if (!token) return;
       setLoading(true);
       const res = await fetch("/api/campus-issues/complaints/", {
-        headers: authHeader(),
+        headers: authHeader(role),
       });
       if (res.ok) {
         const data = await res.json();
@@ -75,7 +78,7 @@ export default function ComplaintModule({ role = "student" }) {
           const p = rawP === "HIGH" ? "High" : rawP === "LOW" ? "Low" : "Medium";
           return {
             id: c.id,
-            sender: c.is_anonymous ? "Anonymous User" : (c.submitted_by || "Student"),
+            sender: c.is_anonymous ? "Anonymous Student" : (c.sender_display || c.submitted_by || "Student"),
             subject: c.subject || "Grievance Record",
             text: c.description || c.subject,
             priority: p,
@@ -92,7 +95,7 @@ export default function ComplaintModule({ role = "student" }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [role]);
 
   useEffect(() => {
     fetchComplaints();
@@ -105,7 +108,7 @@ export default function ComplaintModule({ role = "student" }) {
     const now = new Date().toLocaleString();
     const newComplaint = {
       id: Date.now(),
-      sender: anon ? "Anonymous User" : `${role.toUpperCase()} User`,
+      sender: anon ? "Anonymous Student" : `${role.toUpperCase()} User`,
       subject,
       text,
       priority,
@@ -125,7 +128,7 @@ export default function ComplaintModule({ role = "student" }) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...authHeader(),
+            ...authHeader(role),
           },
           body: JSON.stringify({
             subject,
@@ -134,7 +137,7 @@ export default function ComplaintModule({ role = "student" }) {
             is_anonymous: anon,
           }),
         });
-        fetchComplaints();
+        await fetchComplaints();
       }
     } catch {
       // Local optimistic update handles rendering
@@ -165,30 +168,32 @@ export default function ComplaintModule({ role = "student" }) {
       )
     );
 
-    // Call Django API if valid backend complaint ID
+    // Call Django API
     try {
       const token = localStorage.getItem("cems_access");
-      if (token && typeof id === "number" && id < 100000) {
-        await fetch(`/api/campus-issues/complaints/${id}/reply/`, {
+      if (token && id) {
+        const res = await fetch(`/api/campus-issues/complaints/${id}/reply/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            ...authHeader(),
+            ...authHeader(role),
           },
           body: JSON.stringify({
             reply: replyText.trim(),
             status: statusAction,
           }),
         });
-        fetchComplaints();
+        if (res.ok) {
+          await fetchComplaints();
+        }
       }
-    } catch {
-      // Local state update handles display
+    } catch (err) {
+      console.error("Failed to submit reply:", err);
     }
 
     setReplyingId(null);
     setReplyText("");
-    setNotice(`✅ Grievance marked as ${statusAction} and reply sent to user!`);
+    setNotice(`✅ Grievance marked as ${statusAction} and reply sent to submitter!`);
     setTimeout(() => setNotice(""), 5000);
   };
 
@@ -314,8 +319,8 @@ export default function ComplaintModule({ role = "student" }) {
 
             <span style={{
               fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 12,
-              background: c.status === "ACCEPTED" ? "#D1FAE5" : c.status === "REJECTED" ? "#FEE2E2" : "#EFF6FF",
-              color: c.status === "ACCEPTED" ? "#047857" : c.status === "REJECTED" ? "#B91C1C" : "#722F37"
+              background: (c.status === "ACCEPTED" || c.status === "RESOLVED" || c.status === "Resolved & Replied") ? "#D1FAE5" : c.status === "REJECTED" ? "#FEE2E2" : (c.status === "Pending Principal Review" || c.status === "OPEN") ? "#FEF3C7" : "#E0F2FE",
+              color: (c.status === "ACCEPTED" || c.status === "RESOLVED" || c.status === "Resolved & Replied") ? "#047857" : c.status === "REJECTED" ? "#B91C1C" : (c.status === "Pending Principal Review" || c.status === "OPEN") ? "#B45309" : "#0369A1"
             }}>
               {c.status}
             </span>

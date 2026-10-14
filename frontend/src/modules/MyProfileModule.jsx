@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
 import { maroon, maroonDark, maroonSoft, line } from "../theme";
-
-const MEDIA_BASE = "http://127.0.0.1:8000";
+import { resolveMediaUrl } from "../apiConfig";
 
 function absUrl(src) {
-  if (!src) return null;
-  return src.startsWith("http") ? src : `${MEDIA_BASE}${src}`;
+  return resolveMediaUrl(src);
 }
 
 const ROLE_OPTIONS = [
@@ -42,6 +40,9 @@ export default function MyProfileModule({ accessToken, onUserUpdated }) {
   const [isValidated, setIsValidated] = useState(true);
   const [isActive, setIsActive] = useState(true);
   const [idYear, setIdYear] = useState("");
+  const [emergencyContactNumber, setEmergencyContactNumber] = useState("");
+  const [emergencyContactName, setEmergencyContactName] = useState("");
+  const [emergencyContactRelation, setEmergencyContactRelation] = useState("Parent");
 
   // Image uploads state
   const [imageFile, setImageFile] = useState(null);
@@ -105,6 +106,9 @@ export default function MyProfileModule({ accessToken, onUserUpdated }) {
     setIsValidated(u.is_validated ?? true);
     setIsActive(u.is_active ?? true);
     setIdYear(u.college_id?.id_year || u.college_id?.id_number || "");
+    setEmergencyContactNumber(u.emergency_contact_number || "");
+    setEmergencyContactName(u.emergency_contact_name || "");
+    setEmergencyContactRelation(u.emergency_contact_relation || "Parent");
 
     setImageFile(null);
     setImagePreview(absUrl(u.profile_image));
@@ -204,6 +208,9 @@ export default function MyProfileModule({ accessToken, onUserUpdated }) {
       formData.append("email", email.trim());
       formData.append("phone_number", phoneNumber.trim());
       formData.append("department", department.trim());
+      formData.append("emergency_contact_number", emergencyContactNumber.trim());
+      formData.append("emergency_contact_name", emergencyContactName.trim());
+      formData.append("emergency_contact_relation", emergencyContactRelation.trim());
       if (idYear.trim()) {
         formData.append("id_year", idYear.trim());
         formData.append("id_number", idYear.trim());
@@ -311,10 +318,10 @@ export default function MyProfileModule({ accessToken, onUserUpdated }) {
 
       {/* ── Top Header Hero Card ── */}
       <div style={{
-        background: "linear-gradient(135deg, #581124 0%, #722F37 100%)",
+        background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
         borderRadius: 20, padding: "32px 28px", color: "#FFFFFF",
-        boxShadow: "0 8px 32px rgba(88, 17, 36, 0.25)", position: "relative",
-        border: "1px solid rgba(255,255,255,0.1)", display: "flex", flexWrap: "wrap",
+        boxShadow: "0 8px 32px rgba(5, 150, 105, 0.2)", position: "relative",
+        border: "1.5px solid #A7F3D0", display: "flex", flexWrap: "wrap",
         alignItems: "center", justifyContent: "space-between", gap: 24
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 24, flexWrap: "wrap" }}>
@@ -594,6 +601,71 @@ export default function MyProfileModule({ accessToken, onUserUpdated }) {
                 </span>
               </div>
 
+              {/* Emergency Contact Phone */}
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#991B1B", marginBottom: 6 }}>
+                  🚨 Emergency Contact Phone Number
+                </label>
+                <input
+                  type="tel"
+                  maxLength={15}
+                  value={emergencyContactNumber}
+                  onChange={(e) => setEmergencyContactNumber(e.target.value.replace(/[^\d+]/g, "").slice(0, 15))}
+                  placeholder="e.g. 9876543210 or +919876543210"
+                  style={{
+                    width: "100%", padding: "10px 14px", borderRadius: 10,
+                    border: "1.5px solid #FCA5A5", fontSize: 14, outline: "none", boxSizing: "border-box",
+                    background: "#FEF2F2"
+                  }}
+                />
+                <span style={{ fontSize: 11, color: "#991B1B", marginTop: 4, display: "block" }}>
+                  Auto-dispatched via SMS &amp; WhatsApp whenever SOS / Siren is enabled
+                </span>
+              </div>
+
+              {/* Emergency Contact Person Name */}
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#991B1B", marginBottom: 6 }}>
+                  Emergency Contact Person Name
+                </label>
+                <input
+                  type="text"
+                  maxLength={100}
+                  value={emergencyContactName}
+                  onChange={(e) => setEmergencyContactName(e.target.value)}
+                  placeholder="e.g. Father / Mother name"
+                  style={{
+                    width: "100%", padding: "10px 14px", borderRadius: 10,
+                    border: "1.5px solid #FCA5A5", fontSize: 14, outline: "none", boxSizing: "border-box",
+                    background: "#FEF2F2"
+                  }}
+                />
+              </div>
+
+              {/* Emergency Contact Relationship */}
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 800, color: "#991B1B", marginBottom: 6 }}>
+                  Emergency Contact Relationship
+                </label>
+                <select
+                  value={emergencyContactRelation}
+                  onChange={(e) => setEmergencyContactRelation(e.target.value)}
+                  style={{
+                    width: "100%", padding: "10px 14px", borderRadius: 10,
+                    border: "1.5px solid #FCA5A5", fontSize: 14, outline: "none", boxSizing: "border-box",
+                    background: "#FEF2F2"
+                  }}
+                >
+                  <option value="Parent">Parent (Father / Mother)</option>
+                  <option value="Guardian">Guardian</option>
+                  <option value="Spouse">Spouse / Partner</option>
+                  <option value="Sibling">Sibling (Brother / Sister)</option>
+                  <option value="Relative">Relative</option>
+                  <option value="Friend">Friend / Roommate</option>
+                  <option value="Other">Other Contact</option>
+                </select>
+              </div>
+
             </div>
 
             {/* Save & Cancel Buttons */}
@@ -652,6 +724,52 @@ export default function MyProfileModule({ accessToken, onUserUpdated }) {
               <div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: "#065F46", textTransform: "uppercase", letterSpacing: "0.05em" }}>Phone Number</div>
                 <div style={{ fontSize: 14, fontWeight: 600, color: "#334155", marginTop: 2 }}>{user?.phone_number || "—"}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Emergency Distress Contact Card */}
+          <div style={{
+            background: "#FEF2F2", borderRadius: 16, padding: "24px",
+            border: "1.5px solid #FCA5A5", boxShadow: "0 4px 16px rgba(220,38,38,0.08)"
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, borderBottom: "1.5px solid #FECACA", paddingBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>🚨</span>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#991B1B" }}>
+                  EMERGENCY DISTRESS CONTACT
+                </h3>
+              </div>
+              <span style={{
+                fontSize: 11, fontWeight: 800, padding: "4px 8px", borderRadius: 8,
+                background: user?.emergency_contact_number ? "#DCFCE7" : "#FEE2E2",
+                color: user?.emergency_contact_number ? "#15803D" : "#B91C1C",
+              }}>
+                {user?.emergency_contact_number ? "✓ Active Alert Contact" : "⚠️ Not Configured"}
+              </span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#991B1B", textTransform: "uppercase", letterSpacing: "0.05em" }}>Emergency Phone Number</div>
+                <div style={{ fontSize: 16, fontWeight: 800, color: "#7F1D1D", marginTop: 2, fontFamily: "monospace" }}>
+                  {user?.emergency_contact_number ? (
+                    <a href={`tel:${user.emergency_contact_number}`} style={{ color: "#991B1B", textDecoration: "none" }}>
+                      📞 {user.emergency_contact_number}
+                    </a>
+                  ) : "None provided (Click Edit Profile to add)"}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: "#991B1B", textTransform: "uppercase", letterSpacing: "0.05em" }}>Contact Person</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#334155", marginTop: 2 }}>
+                  {user?.emergency_contact_name || "—"} {user?.emergency_contact_relation ? `(${user.emergency_contact_relation})` : ""}
+                </div>
+              </div>
+              <div style={{
+                background: "#FFFFFF", borderRadius: 10, padding: "10px 14px",
+                border: "1px solid #FECACA", fontSize: 12, color: "#991B1B", lineHeight: 1.45
+              }}>
+                📢 <strong>Auto-Dispatch Protocol:</strong> When you trigger Emergency SOS or the Panic Siren, a distress SMS and WhatsApp message with your live GPS location will be automatically sent to this number.
               </div>
             </div>
           </div>

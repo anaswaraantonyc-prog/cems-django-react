@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
 import { maroon, maroonDark, maroonSoft, winePrimary, wineSoft, dustyRoseAccent } from "../theme";
-
-const MEDIA_BASE = "http://127.0.0.1:8000";
+import { resolveMediaUrl } from "../apiConfig";
 
 function absUrl(src) {
-  if (!src) return null;
-  return src.startsWith("http") ? src : `${MEDIA_BASE}${src}`;
+  return resolveMediaUrl(src);
 }
 
 const ROLE_OPTIONS = [
@@ -23,7 +21,7 @@ const ROLE_OPTIONS = [
 function RoleBadge({ role }) {
   const map = {
     STUDENT: { bg: "#E3F2FD", color: "#1565C0", label: "Student" },
-    CLASS_REP: { bg: "#EFF6FF", color: "#581124", label: "Class Rep" },
+    CLASS_REP: { bg: "#ECFDF5", color: "#065F46", label: "Class Rep" },
     FACULTY: { bg: "#E8F5E9", color: "#2E7D32", label: "Faculty" },
     EXTERNAL_PARTICIPANT: { bg: "#FFF3E0", color: "#E65100", label: "External" },
     PRINCIPAL: { bg: "#F3E5F5", color: "#6A1B9A", label: "Principal" },
@@ -96,6 +94,9 @@ export default function UserProfileModal({
         is_validated: user.is_validated ?? true,
         is_active: user.is_active ?? true,
         id_year: user.college_id?.id_year || user.college_id?.id_number || "",
+        emergency_contact_number: user.emergency_contact_number || "",
+        emergency_contact_name: user.emergency_contact_name || "",
+        emergency_contact_relation: user.emergency_contact_relation || "Parent",
       });
       setNewImageFile(null);
       setImagePreview(null);
@@ -202,6 +203,9 @@ export default function UserProfileModal({
         if (formData.id_year !== undefined) {
           data.append("id_year", formData.id_year.trim());
         }
+        data.append("emergency_contact_number", (formData.emergency_contact_number || "").trim());
+        data.append("emergency_contact_name", (formData.emergency_contact_name || "").trim());
+        data.append("emergency_contact_relation", (formData.emergency_contact_relation || "Parent").trim());
         data.append("profile_image", newImageFile);
 
         res = await fetch(`/api/auth/users/${user.id}/`, {
@@ -229,6 +233,9 @@ export default function UserProfileModal({
             is_validated: formData.is_validated,
             is_active: formData.is_active,
             id_year: (formData.id_year || "").trim(),
+            emergency_contact_number: (formData.emergency_contact_number || "").trim(),
+            emergency_contact_name: (formData.emergency_contact_name || "").trim(),
+            emergency_contact_relation: (formData.emergency_contact_relation || "Parent").trim(),
           }),
         });
       }
@@ -342,24 +349,24 @@ export default function UserProfileModal({
             maxWidth: 640,
             maxHeight: "90vh",
             borderRadius: 20,
-            boxShadow: "0 20px 50px rgba(56, 10, 21, 0.35)",
+            boxShadow: "0 20px 50px rgba(5, 150, 105, 0.15)",
             overflowY: "auto",
             display: "flex",
             flexDirection: "column",
-            border: "1px solid #A7F3D0",
+            border: "1.5px solid #A7F3D0",
             animation: "slideUp 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
           }}
         >
           {/* Header */}
           <div
             style={{
-              background: "linear-gradient(135deg, #581124 0%, #722F37 100%)",
+              background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
               padding: "20px 24px",
               color: "#FFFFFF",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              borderBottom: "1px solid rgba(255,255,255,0.1)",
+              borderBottom: "1px solid rgba(255,255,255,0.15)",
             }}
           >
             <div>
@@ -626,6 +633,60 @@ export default function UserProfileModal({
                     <div>
                       <div style={{ fontSize: 11, color: "#065F46", fontWeight: 700 }}>Department</div>
                       <div style={{ fontSize: 14, fontWeight: 600, color: maroonDark }}>{user.department || "—"}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section: Emergency Distress Contact */}
+                <div style={{ marginBottom: 20 }}>
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      letterSpacing: "0.08em",
+                      color: "#991B1B",
+                      textTransform: "uppercase",
+                      borderBottom: "1.5px solid #FCA5A5",
+                      paddingBottom: 6,
+                      marginBottom: 14,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <span>🚨</span> EMERGENCY DISTRESS CONTACT (AUTO-SOS / SIREN)
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+                      gap: 14,
+                      background: "#FEF2F2",
+                      padding: "14px 18px",
+                      borderRadius: 12,
+                      border: "1px solid #FECACA",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontSize: 11, color: "#991B1B", fontWeight: 700 }}>Contact Phone Number</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#7F1D1D" }}>
+                        {user.emergency_contact_number || "— Not configured —"}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 11, color: "#991B1B", fontWeight: 700 }}>Contact Person Name</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#7F1D1D" }}>
+                        {user.emergency_contact_name || "—"}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 11, color: "#991B1B", fontWeight: 700 }}>Relationship</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#7F1D1D" }}>
+                        {user.emergency_contact_relation || "—"}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1048,6 +1109,84 @@ export default function UserProfileModal({
                     >
                       <option value="true">Active Account</option>
                       <option value="false">Disabled / Inactive Account</option>
+                    </select>
+                  </div>
+
+                  {/* Emergency Contact Phone */}
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "block", marginBottom: 4 }}>
+                      🚨 Emergency Contact Phone (SOS)
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.emergency_contact_number}
+                      onChange={(e) => setFormData({ ...formData, emergency_contact_number: e.target.value })}
+                      placeholder="e.g. 9876543210"
+                      maxLength={15}
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "9px 12px",
+                        borderRadius: 8,
+                        border: "1.5px solid #FCA5A5",
+                        fontSize: 13,
+                        outline: "none",
+                        background: "#FFF",
+                      }}
+                    />
+                  </div>
+
+                  {/* Emergency Contact Name */}
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "block", marginBottom: 4 }}>
+                      Emergency Contact Name
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.emergency_contact_name}
+                      onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value })}
+                      placeholder="e.g. Parent / Guardian Name"
+                      maxLength={100}
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "9px 12px",
+                        borderRadius: 8,
+                        border: "1.5px solid #FCA5A5",
+                        fontSize: 13,
+                        outline: "none",
+                        background: "#FFF",
+                      }}
+                    />
+                  </div>
+
+                  {/* Emergency Contact Relation */}
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 700, color: "#991B1B", display: "block", marginBottom: 4 }}>
+                      Emergency Contact Relation
+                    </label>
+                    <select
+                      value={formData.emergency_contact_relation}
+                      onChange={(e) => setFormData({ ...formData, emergency_contact_relation: e.target.value })}
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "9px 12px",
+                        borderRadius: 8,
+                        border: "1.5px solid #FCA5A5",
+                        fontSize: 13,
+                        outline: "none",
+                        background: "#FFF",
+                        fontWeight: 600,
+                      }}
+                    >
+                      <option value="Parent">Parent (Father / Mother)</option>
+                      <option value="Guardian">Guardian</option>
+                      <option value="Spouse">Spouse / Partner</option>
+                      <option value="Sibling">Sibling</option>
+                      <option value="Relative">Relative</option>
+                      <option value="Friend">Friend</option>
+                      <option value="Other">Other Contact</option>
                     </select>
                   </div>
                 </div>

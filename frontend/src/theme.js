@@ -206,16 +206,18 @@ export const roles = [
   { id: "admin",     label: "Admin",     icon: "" },
   { id: "canteen",   label: "Canteen Staff", icon: "" },
   { id: "warden",    label: "Hostel Warden", icon: "" },
+  { id: "medical_staff", label: "Medical Staff", icon: "" },
 ];
 
 export const modulesByRole = {
-  student:   ["booking", "refund", "rebook", "medical", "complaint", "lostfound", "profile"],
-  class_rep: ["booking", "refund", "rebook", "medical", "complaint", "lostfound", "profile"],
-  faculty:   ["booking", "refund", "rebook", "medical", "complaint", "lostfound", "profile"],
-  principal: ["booking", "refund", "complaint", "rebook", "lostfound", "profile"],
-  admin:     ["register", "booking", "access", "complaint", "lostfound", "profile"],
-  canteen:   ["canteen", "lostfound", "profile"],
-  warden:    ["warden", "lostfound", "profile"],
+  student:       ["booking", "refund", "rebook", "medical", "complaint", "lostfound", "profile"],
+  class_rep:     ["booking", "refund", "rebook", "medical", "complaint", "lostfound", "profile"],
+  faculty:       ["booking", "refund", "rebook", "medical", "complaint", "lostfound", "profile"],
+  principal:     ["booking", "medical", "refund", "complaint", "rebook", "lostfound", "profile"],
+  admin:         ["register", "booking", "medical", "access", "complaint", "lostfound", "profile"],
+  canteen:       ["canteen", "medical", "lostfound", "profile"],
+  warden:        ["warden", "medical", "lostfound", "profile"],
+  medical_staff: ["medical", "complaint", "lostfound"],
 };
 
 export const moduleLabels = {

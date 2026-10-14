@@ -23,11 +23,15 @@ import WardenModule    from "./modules/WardenModule";
 import LostFoundModule from "./modules/LostFoundModule";
 import MyProfileModule from "./modules/MyProfileModule";
 import { Toast } from "./components/Shared";
+import EmergencySirenModal, { SirenBeaconIcon } from "./components/EmergencySirenModal";
+import EmergencyAlertPopup from "./components/EmergencyAlertPopup";
+import ResponderAlertsDesk from "./components/ResponderAlertsDesk";
+import GlobalEmergencyDock from "./components/GlobalEmergencyDock";
 
 
 /* ── SVG Icons for sidebar modules ─────────────────────── */
 const ModuleIcon = ({ name, active }) => {
-  const color = active ? "#FFFFFF" : "rgba(255,255,255,0.5)";
+  const color = active ? "#064E3B" : "#065F46";
   const icons = {
     booking: (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -102,11 +106,12 @@ const roleLabelsClean = {
   faculty: "Faculty",
   class_rep: "Class Representative",
   admin: "Admin",
+  medical_staff: "Medical Staff",
 };
 
 /* ── Main page header icon ─────────────────────────────── */
 const PageHeaderIcon = ({ name }) => {
-  const color = "#8B1E3F";
+  const color = "#065F46";
   const icons = {
     booking: (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -172,7 +177,8 @@ const PageHeaderIcon = ({ name }) => {
   return (
     <div style={{
       width: 40, height: 40, borderRadius: 12,
-      background: "#EFF6FF",
+      background: "#DCFCE7",
+      border: "1.5px solid #A7F3D0",
       display: "flex", alignItems: "center", justifyContent: "center",
       flexShrink: 0,
     }}>
@@ -192,6 +198,15 @@ export default function App() {
   // Global Broadcast State
   const [broadcastMessage, setBroadcastMessage] = useState("");
   const [lastSeenLostId, setLastSeenLostId] = useState(null);
+
+  // Active Emergency Panic Siren Alarm State
+  const [activeEmergencyAlarm, setActiveEmergencyAlarm] = useState(null);
+  const [showAlarmDetailModal, setShowAlarmDetailModal] = useState(false);
+  const [dismissedAlarmId, setDismissedAlarmId] = useState(null);
+
+  // Global 1-Tap Emergency States (Accessible from anywhere / PWA shortcuts)
+  const [globalSirenOpen, setGlobalSirenOpen] = useState(false);
+  const [globalSosOpen, setGlobalSosOpen] = useState(false);
 
   const parseJwtPayload = (tokenStr) => {
     try {
@@ -252,6 +267,7 @@ export default function App() {
         faculty: "faculty", principal: "principal", admin: "admin",
         canteen: "canteen", canteenstaff: "canteen",
         warden: "warden",
+        medicalstaff: "medical_staff", medical_staff: "medical_staff",
       };
       const resolvedRole = map[raw] || "student";
       const resolvedName = data?.full_name || payload.full_name || data?.username || payload.username || (resolvedRole === "canteen" ? "Neethu" : "");
@@ -316,6 +332,55 @@ export default function App() {
     return () => clearInterval(interval);
   }, [view, accessToken, lastSeenLostId, userName]);
 
+  // Listen for college-wide emergency panic alarm broadcasts
+  useEffect(() => {
+    const checkAlarm = async () => {
+      try {
+        const res = await fetch("/api/emergency/alarm/");
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.active_alarm && data.active_alarm.is_active) {
+            setActiveEmergencyAlarm(data.active_alarm);
+            return;
+          }
+        }
+      } catch (e) {}
+
+      try {
+        const raw = localStorage.getItem("cems_active_emergency_alarm");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.location) {
+            setActiveEmergencyAlarm(parsed);
+            return;
+          }
+        }
+      } catch (e) {}
+
+      setActiveEmergencyAlarm(null);
+    };
+
+    checkAlarm();
+    const interval = setInterval(checkAlarm, 2500);
+
+    let bc = null;
+    if (window.BroadcastChannel) {
+      bc = new BroadcastChannel("cems_emergency_channel");
+      bc.onmessage = (ev) => {
+        if (ev.data?.type === "EMERGENCY_ALARM_TRIGGERED") {
+          setActiveEmergencyAlarm(ev.data.data);
+        } else if (ev.data?.type === "EMERGENCY_ALARM_DEACTIVATED") {
+          setActiveEmergencyAlarm(null);
+        }
+      };
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (bc) bc.close();
+    };
+  }, []);
+
   const modules = modulesByRole[role] || modulesByRole["student"];
   const current = modules.includes(activeModule) ? activeModule : modules[0];
 
@@ -337,10 +402,85 @@ export default function App() {
 
   /* ══════════════════════════════════════════
      PUBLIC PAGES  (login / register)
+     Only the login / registration interface is visible when opening the website
   ══════════════════════════════════════════ */
   if (view === "login" || view === "register") {
     return (
       <div style={{ minHeight: "100vh", position: "relative" }}>
+        {/* ── College Emergency Panic Siren Banner on Public Pages ── */}
+        {activeEmergencyAlarm && (
+          <div style={{
+            background: "linear-gradient(90deg, #991B1B 0%, #DC2626 50%, #991B1B 100%)",
+            color: "#FFFFFF",
+            padding: "10px 24px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxShadow: "0 4px 20px rgba(220, 38, 38, 0.6)",
+            zIndex: 100,
+            animation: "emergencyTopBarPulse 1.2s infinite alternate",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ animation: "sirenSpin 1.4s infinite", display: "flex", alignItems: "center" }}>
+                <SirenBeaconIcon size={28} color="#FFFFFF" />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.02em" }}>
+                  CRITICAL CAMPUS EMERGENCY: Person at <u>{activeEmergencyAlarm.location}</u> needs immediate help!
+                </div>
+                <div style={{ fontSize: 11, color: "#FEE2E2", marginTop: 2 }}>
+                  Reported by: <strong>{activeEmergencyAlarm.caller_name || "Campus Member"}</strong> · {activeEmergencyAlarm.created_at || "Just now"}
+                  {activeEmergencyAlarm.phone ? ` · Phone: ${activeEmergencyAlarm.phone}` : ""}
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <button
+                type="button"
+                onClick={() => setShowAlarmDetailModal(true)}
+                style={{
+                  background: "#FFFFFF", color: "#DC2626", border: "none",
+                  borderRadius: 8, padding: "7px 14px", fontWeight: 800, fontSize: 12, cursor: "pointer",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                }}
+              >
+                📍 View Live Location & Siren Map
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  setActiveEmergencyAlarm(null);
+                  try {
+                    await fetch("/api/emergency/alarm/", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "deactivate" }),
+                    });
+                    localStorage.removeItem("cems_active_emergency_alarm");
+                    if (window.BroadcastChannel) {
+                      const bc = new BroadcastChannel("cems_emergency_channel");
+                      bc.postMessage({ type: "EMERGENCY_ALARM_DEACTIVATED" });
+                      bc.close();
+                    }
+                  } catch (e) {}
+                }}
+                style={{
+                  background: "rgba(255,255,255,0.2)",
+                  color: "#FFFFFF",
+                  border: "1px solid rgba(255,255,255,0.4)",
+                  borderRadius: 8,
+                  padding: "7px 12px",
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+        )}
+
         <Navbar
           view={view}
           onNav={(v) => { setView(v); setEmergencyModalOpen(false); }}
@@ -358,6 +498,72 @@ export default function App() {
             onGoLogin={() => { setView("login"); setEmergencyModalOpen(false); }}
           />
         )}
+
+        {showAlarmDetailModal && (
+          <EmergencySirenModal
+            onClose={() => setShowAlarmDetailModal(false)}
+            callerDefaultName={userName || "Campus Member"}
+          />
+        )}
+
+        {/* ── Emergency Alert Pop-up on Public Pages ── */}
+        {activeEmergencyAlarm && activeEmergencyAlarm.id !== dismissedAlarmId && !showAlarmDetailModal && (
+          <EmergencyAlertPopup
+            alarm={activeEmergencyAlarm}
+            onDismiss={() => setDismissedAlarmId(activeEmergencyAlarm.id)}
+          />
+        )}
+
+        {/* ── Global 1-Tap Mobile Emergency Dock & PWA Installer (Public View) ── */}
+        <GlobalEmergencyDock
+          onTriggerSiren={() => setGlobalSirenOpen(true)}
+          onTriggerSos={() => setGlobalSosOpen(true)}
+          activeAlarm={activeEmergencyAlarm}
+        />
+
+        {globalSirenOpen && (
+          <EmergencySirenModal
+            onClose={() => setGlobalSirenOpen(false)}
+            callerDefaultName={userName || "Campus Visitor / Student"}
+          />
+        )}
+
+        {globalSosOpen && (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(15, 23, 42, 0.78)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 99999,
+              padding: "16px",
+              backdropFilter: "blur(8px)",
+              WebkitBackdropFilter: "blur(8px)",
+            }}
+          >
+            <div
+              style={{
+                width: "min(540px, 100%)",
+                maxHeight: "94vh",
+                overflowY: "auto",
+                borderRadius: "18px",
+                overflow: "hidden",
+                boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+              }}
+            >
+              <MedicalModule
+                emergencyMode
+                onSuccess={(data) => {
+                  setGlobalSosOpen(false);
+                  handleLoggedIn(data, true);
+                }}
+                onClose={() => setGlobalSosOpen(false)}
+              />
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -368,89 +574,157 @@ export default function App() {
   return (
     <div style={{
       minHeight: "100vh", display: "flex", flexDirection: "column",
-      background: "#241836",
+      background: "#F0FDF4",
     }}>
       <Toast message={broadcastMessage} type="warning" visible={!!broadcastMessage} onClose={() => setBroadcastMessage("")} />
 
+      {/* ── College Emergency Panic Siren Banner in Dashboard ── */}
+      {activeEmergencyAlarm && (
+        <div style={{
+          background: "linear-gradient(90deg, #991B1B 0%, #DC2626 50%, #991B1B 100%)",
+          color: "#FFFFFF",
+          padding: "10px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          boxShadow: "0 4px 20px rgba(220, 38, 38, 0.6)",
+          zIndex: 100,
+          animation: "emergencyTopBarPulse 1.2s infinite alternate",
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ animation: "sirenSpin 1.4s infinite", display: "flex", alignItems: "center" }}>
+              <SirenBeaconIcon size={28} color="#FFFFFF" />
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 900, letterSpacing: "0.02em" }}>
+                CRITICAL CAMPUS EMERGENCY: Person at <u>{activeEmergencyAlarm.location}</u> needs immediate help!
+              </div>
+              <div style={{ fontSize: 11, color: "#FEE2E2", marginTop: 2 }}>
+                Reported by: <strong>{activeEmergencyAlarm.caller_name || "Campus Member"}</strong> · {activeEmergencyAlarm.created_at || "Just now"}
+                {activeEmergencyAlarm.phone ? ` · Phone: ${activeEmergencyAlarm.phone}` : ""}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              type="button"
+              onClick={() => setShowAlarmDetailModal(true)}
+              style={{
+                background: "#FFFFFF", color: "#DC2626", border: "none",
+                borderRadius: 8, padding: "7px 14px", fontWeight: 800, fontSize: 12, cursor: "pointer",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+              }}
+            >
+              📍 View Live Location & Siren Map
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                setActiveEmergencyAlarm(null);
+                try {
+                  await fetch("/api/emergency/alarm/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ action: "deactivate" }),
+                  });
+                  localStorage.removeItem("cems_active_emergency_alarm");
+                  if (window.BroadcastChannel) {
+                    const bc = new BroadcastChannel("cems_emergency_channel");
+                    bc.postMessage({ type: "EMERGENCY_ALARM_DEACTIVATED" });
+                    bc.close();
+                  }
+                } catch (e) {}
+              }}
+              style={{
+                background: "rgba(255,255,255,0.2)",
+                color: "#FFFFFF",
+                border: "1px solid rgba(255,255,255,0.4)",
+                borderRadius: 8,
+                padding: "7px 12px",
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── top navbar ── */}
       <header style={{
-        background: "linear-gradient(90deg, #581124 0%, #722F37 100%)",
+        background: "#FFFFFF",
         display: "flex", alignItems: "center", justifyContent: "space-between",
         padding: "0 24px", height: 60,
-        boxShadow: "0 4px 24px rgba(88, 17, 36, 0.2)",
+        boxShadow: "0 2px 16px rgba(5, 150, 105, 0.08)",
         position: "sticky", top: 0, zIndex: 20,
-        borderBottom: "1px solid rgba(255,255,255,0.06)",
+        borderBottom: "1.5px solid #A7F3D0",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: "linear-gradient(135deg, #8B1E3F, #722F37)",
+            width: 34, height: 34, borderRadius: 8,
+            background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#ffffff", fontWeight: 800, fontSize: 16,
-            boxShadow: "0 4px 14px rgba(201, 107, 133, 0.5)",
+            color: "#FFFFFF",
+            boxShadow: "0 2px 8px rgba(5, 150, 105, 0.25)",
+            flexShrink: 0
           }}>
-            C
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+              <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
           </div>
           <div>
             <div style={{
               fontSize: 17, fontWeight: 800,
-              color: "#ffffff", letterSpacing: "-0.01em"
-            }}>CEMS</div>
+              color: "#065F46", letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 8
+            }}>
+              <span>CEMS</span>
+            </div>
             <div style={{
-              fontSize: 9, color: "rgba(203,213,225,0.7)", letterSpacing: "0.12em", fontWeight: 600
+              fontSize: 9, color: "#059669", letterSpacing: "0.12em", fontWeight: 700
             }}>
               CAMPUS EVENT MANAGEMENT
             </div>
           </div>
         </div>
 
-        {/* Role switcher & Sign out */}
+        {/* Quick Emergency SOS & Sign out */}
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div style={{
-            display: "flex", alignItems: "center", gap: 8,
-            background: "rgba(255,255,255,0.06)", padding: "6px 14px",
-            borderRadius: 9999, border: "1px solid rgba(255,255,255,0.1)"
-          }}>
-            <span style={{
-              fontSize: 11, color: "rgba(203,213,225,0.7)",
-              textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 700
-            }}>
-              Role:
-            </span>
-            <select
-              value={role}
-              onChange={(e) => selectRole(e.target.value)}
-              style={{
-                background: "transparent",
-                color: "#FFFFFF",
-                border: "none",
-                fontSize: 12,
-                fontWeight: 700,
-                cursor: "pointer",
-                outline: "none",
-              }}
-            >
-              <option value="canteen" style={{ background: "#380A15", color: "#FFF" }}>Canteen Staff (Neethu)</option>
-              <option value="student" style={{ background: "#380A15", color: "#FFF" }}>Student</option>
-              <option value="principal" style={{ background: "#380A15", color: "#FFF" }}>Principal</option>
-              <option value="warden" style={{ background: "#380A15", color: "#FFF" }}>Hostel Warden</option>
-              <option value="faculty" style={{ background: "#380A15", color: "#FFF" }}>Faculty</option>
-              <option value="class_rep" style={{ background: "#380A15", color: "#FFF" }}>Class Representative</option>
-              <option value="admin" style={{ background: "#380A15", color: "#FFF" }}>Admin</option>
-            </select>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowAlarmDetailModal(true)}
+            style={{
+              background: "#FEF2F2",
+              border: "1.5px solid #FCA5A5",
+              color: "#DC2626",
+              fontSize: 12,
+              padding: "7px 16px",
+              borderRadius: 9999,
+              cursor: "pointer",
+              fontWeight: 800,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              transition: "all 0.2s ease",
+            }}
+          >
+            <SirenBeaconIcon size={14} color="#DC2626" />
+            Emergency SOS
+          </button>
 
           <button onClick={handleSignOut}
             style={{
-              background: "rgba(255,255,255,0.08)",
-              border: "1px solid rgba(255,255,255,0.15)",
-              color: "#FFFFFF", fontSize: 12, padding: "7px 16px", borderRadius: 9999,
-              cursor: "pointer", fontWeight: 600,
+              background: "#F0FDF4",
+              border: "1.5px solid #A7F3D0",
+              color: "#065F46", fontSize: 12, padding: "7px 16px", borderRadius: 9999,
+              cursor: "pointer", fontWeight: 700,
               display: "flex", alignItems: "center", gap: 6,
               transition: "all 0.2s ease",
             }}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-              stroke="#FFFFFF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              stroke="#065F46" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
               <polyline points="16 17 21 12 16 7"/>
               <line x1="21" y1="12" x2="9" y2="12"/>
@@ -460,38 +734,56 @@ export default function App() {
         </div>
       </header>
 
+      {/* ── Mobile Horizontal Module Navigation (Visible only on mobile/tablet) ── */}
+      <div className="cems-mobile-nav-strip">
+        {modules.map((m) => {
+          const active = current === m;
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setActiveModule(m)}
+              className={`cems-mobile-tab-btn ${active ? "active" : ""}`}
+            >
+              <ModuleIcon name={m} active={active} />
+              <span>{moduleLabels[m]}</span>
+            </button>
+          );
+        })}
+      </div>
+
       <div style={{ display: "flex", flex: 1, minHeight: 0 }}>
 
         {/* ── sidebar ── */}
         <aside className="dashboard-sidebar" style={{
-          background: "linear-gradient(180deg, #581124 0%, #722F37 100%)",
+          background: "#FFFFFF",
           width: 240, flexShrink: 0, padding: "20px 14px",
-          borderRight: "1px solid rgba(255,255,255,0.06)",
+          borderRight: "1.5px solid #A7F3D0",
           display: "flex", flexDirection: "column", gap: 0,
           overflowY: "auto",
         }}>
 
           {/* modules label */}
           <div style={{
-            fontSize: 10, color: "rgba(203,213,225,0.5)", letterSpacing: "0.1em",
-            textTransform: "uppercase", marginBottom: 10, paddingLeft: 12, fontWeight: 700,
+            fontSize: 10, color: "#059669", letterSpacing: "0.1em",
+            textTransform: "uppercase", marginBottom: 10, paddingLeft: 12, fontWeight: 800,
           }}>
             Modules
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {modules.map((m) => {
               const active = current === m;
               return (
                 <button key={m} onClick={() => setActiveModule(m)}
                   style={{
                     textAlign: "left", padding: "10px 12px", borderRadius: 10,
-                    border: "none",
+                    border: active ? "1.5px solid #A7F3D0" : "1.5px solid transparent",
                     cursor: "pointer", fontSize: 13,
-                    fontWeight: active ? 700 : 500,
+                    fontWeight: active ? 800 : 600,
                     background: active
-                      ? "rgba(201, 107, 133, 0.2)"
+                      ? "#DCFCE7"
                       : "transparent",
-                    color: active ? "#FFFFFF" : "rgba(255,255,255,0.55)",
+                    color: active ? "#064E3B" : "#065F46",
                     display: "flex", alignItems: "center", gap: 10,
                     transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
                     letterSpacing: active ? "0.01em" : "0",
@@ -509,37 +801,37 @@ export default function App() {
             title="Click to view My Profile"
             style={{
               marginTop: "auto", paddingTop: 16,
-              borderTop: "1px solid rgba(255,255,255,0.06)",
+              borderTop: "1.5px solid #A7F3D0",
               paddingLeft: 12, paddingRight: 8, paddingBottom: 8,
               cursor: "pointer", borderRadius: 10,
               transition: "background 0.2s ease",
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.08)"}
+            onMouseEnter={(e) => e.currentTarget.style.background = "#F0FDF4"}
             onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
           >
-            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 6, fontWeight: 600, display: "flex", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 10, color: "#059669", marginBottom: 6, fontWeight: 700, display: "flex", justifyContent: "space-between" }}>
               <span>Signed in as</span>
-              <span style={{ fontSize: 9, color: "rgba(255,255,255,0.5)" }}>View Profile →</span>
+              <span style={{ fontSize: 9, color: "#065F46", fontWeight: 700 }}>View Profile →</span>
             </div>
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
             }}>
               <div style={{
                 width: 32, height: 32, borderRadius: 8,
-                background: "linear-gradient(135deg, #8B1E3F, #722F37)",
+                background: "linear-gradient(135deg, #10B981, #059669)",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#FFFFFF", fontSize: 13, fontWeight: 700, flexShrink: 0,
+                color: "#FFFFFF", fontSize: 13, fontWeight: 800, flexShrink: 0,
               }}>
                 {(userName || roles.find(r => r.id === role)?.label || "U").charAt(0).toUpperCase()}
               </div>
               <div style={{ minWidth: 0 }}>
                 <div style={{
-                  color: "#FFFFFF", fontWeight: 700, fontSize: 13,
+                  color: "#064E3B", fontWeight: 700, fontSize: 13,
                   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
                 }}>
                   {role === "canteen" ? (userName ? `${userName}` : "Neethu") : (userName || roles.find(r => r.id === role)?.label)}
                 </div>
-                <div style={{ color: "rgba(255,255,255,0.45)", fontSize: 10 }}>
+                <div style={{ color: "#059669", fontSize: 10, fontWeight: 600 }}>
                   {roleLabelsClean[role] || roles.find(r => r.id === role)?.label}
                 </div>
               </div>
@@ -564,11 +856,11 @@ export default function App() {
               <div>
                 <h1 style={{
                   margin: 0, fontSize: 22,
-                  fontWeight: 800, color: "#581124", letterSpacing: "-0.02em",
+                  fontWeight: 800, color: "#064E3B", letterSpacing: "-0.02em",
                 }}>
                   {moduleLabels[current]}
                 </h1>
-                <div style={{ fontSize: 13, color: "#065F46", marginTop: 3 }}>
+                <div style={{ fontSize: 13, color: "#059669", marginTop: 3 }}>
                   {roleLabelsClean[role] || roles.find(r => r.id === role)?.label} dashboard
                 </div>
               </div>
@@ -580,14 +872,14 @@ export default function App() {
             {current === "register"  && <RegistrationModule />}
             {current === "booking"   && <BookingModule role={role} userName={userName} />}
             {current === "refund"    && <RefundModule role={role} />}
-            {current === "rebook"    && <RebookModule role={role} />}
-            {current === "medical"   && <MedicalModule />}
+            {current === "rebook"    && <RebookModule role={role} userName={userName} accessToken={accessToken} />}
+            {current === "medical"   && <MedicalModule role={role} accessToken={accessToken} userName={userName} />}
             {current === "complaint" && <ComplaintModule role={role} />}
             {current === "ledger"    && <LedgerModule />}
             {current === "lostfound" && <LostFoundModule role={role} />}
             {current === "access"    && <AccessModule accessToken={accessToken} />}
-            {current === "canteen"   && <CanteenModule />}
-            {current === "warden"    && <WardenModule />}
+            {current === "canteen"   && <CanteenModule userName={userName} />}
+            {current === "warden"    && <WardenModule userName={userName} />}
             {current === "profile"   && (
               <MyProfileModule
                 accessToken={accessToken}
@@ -602,6 +894,68 @@ export default function App() {
           </div>
         </main>
       </div>
+
+      {showAlarmDetailModal && (
+        <EmergencySirenModal
+          onClose={() => setShowAlarmDetailModal(false)}
+          callerDefaultName={userName || "Campus Member"}
+        />
+      )}
+
+      {/* ── Emergency Alert Pop-up with Live Location & Sound for all registered people ── */}
+      {activeEmergencyAlarm && activeEmergencyAlarm.id !== dismissedAlarmId && !showAlarmDetailModal && (
+        <EmergencyAlertPopup
+          alarm={activeEmergencyAlarm}
+          onDismiss={() => setDismissedAlarmId(activeEmergencyAlarm.id)}
+        />
+      )}
+
+      {/* ── Global 1-Tap Mobile Emergency Dock & PWA Installer (Dashboard View) ── */}
+      <GlobalEmergencyDock
+        onTriggerSiren={() => setGlobalSirenOpen(true)}
+        onTriggerSos={() => setGlobalSosOpen(true)}
+        activeAlarm={activeEmergencyAlarm}
+      />
+
+      {globalSirenOpen && (
+        <EmergencySirenModal
+          onClose={() => setGlobalSirenOpen(false)}
+          callerDefaultName={userName || "Campus Member"}
+        />
+      )}
+
+      {globalSosOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.78)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 99999,
+            padding: "16px",
+            backdropFilter: "blur(8px)",
+            WebkitBackdropFilter: "blur(8px)",
+          }}
+        >
+          <div
+            style={{
+              width: "min(540px, 100%)",
+              maxHeight: "94vh",
+              overflowY: "auto",
+              borderRadius: "18px",
+              overflow: "hidden",
+              boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+            }}
+          >
+            <MedicalModule
+              emergencyMode
+              onClose={() => setGlobalSosOpen(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

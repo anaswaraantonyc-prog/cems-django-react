@@ -48,6 +48,9 @@ const RULES = {
     : !/^\d{10}$/.test(v.trim()) ? "Enter exactly 10 digits (e.g. 9876543210)." : null,
   id_year:     v => !v.trim() ? "ID Year is required."
     : !/^[A-Za-z0-9\-]{3,50}$/.test(v.trim()) ? "3-50 letters, numbers or hyphens (e.g. MCA-2025-2027)." : null,
+  emergency_contact_number: v => !v || !v.trim() ? "Emergency contact phone number is required for SOS safety."
+    : !/^\+?\d{10,15}$/.test(v.replace(/[\s\-()]/g, "").trim()) ? "Enter a valid 10-15 digit phone number (e.g. 9876543210)." : null,
+  emergency_contact_name: v => !v || !v.trim() ? "Emergency contact person's name is required." : null,
   password:    v => !v ? "Password is required."
     : v.length < 8 ? "At least 8 characters required."
     : !/[A-Za-z]/.test(v) ? "Must include at least one letter."
@@ -84,7 +87,7 @@ function Input({ label, id, type = "text", value, onChange, onBlur,
   return (
     <div style={{ marginBottom: 16 }}>
       <label htmlFor={id} style={{ display: "flex", alignItems: "center", gap: 4,
-        fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#581124",
+        fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#065F46",
         textTransform: "uppercase", marginBottom: 6 }}>
         {label}
         {required && <span style={{ color: "#DC2626", fontSize: 13 }}>*</span>}
@@ -99,7 +102,7 @@ function Input({ label, id, type = "text", value, onChange, onBlur,
             border: `1.5px solid ${bad ? "#EF4444" : ok ? "#22C55E" : "#A7F3D0"}`,
             borderRadius: 10, fontSize: 14, fontFamily: "inherit",
             background: bad ? "#FEF2F2" : ok ? "#F0FDF4" : "#FFFFFF",
-            color: "#581124", outline: "none",
+            color: "#064E3B", outline: "none",
             boxShadow: bad ? "0 0 0 3px rgba(239, 68, 68, 0.12)"
               : ok ? "0 0 0 3px rgba(34, 197, 94, 0.12)" : "none",
             transition: "all 0.2s ease",
@@ -164,7 +167,7 @@ function ImageUpload({ label, id, hint, file, onChange, error, touched }) {
             </div>
         }
         <div>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "#581124" }}>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "#064E3B" }}>
             {file ? file.name : "Choose a file"}
           </div>
           <div style={{ fontSize: 12, color: "#64748B", marginTop: 3 }}>{hint}</div>
@@ -187,11 +190,11 @@ function Section({ title, subtitle, children }) {
   return (
     <div className="animate-slide-up" style={{ marginBottom: 24, background: "#FFFFFF",
       border: `1px solid #A7F3D0`,
-      color: "#581124",
+      color: "#064E3B",
       borderRadius: 16, padding: "24px 28px",
-      boxShadow: "0 4px 16px rgba(88, 17, 36, 0.06)" }}>
+      boxShadow: "0 4px 16px rgba(6, 95, 70, 0.06)" }}>
       <div style={{ marginBottom: 20, paddingBottom: 12, borderBottom: "1.5px solid #A7F3D0" }}>
-        <div style={{ fontSize: 18, fontWeight: 800, color: "#581124", letterSpacing: "-0.01em" }}>{title}</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: "#064E3B", letterSpacing: "-0.01em" }}>{title}</div>
         {subtitle && <div style={{ fontSize: 13, color: "#065F46", marginTop: 2 }}>{subtitle}</div>}
       </div>
       {children}
@@ -235,6 +238,7 @@ const EMPTY = {
   username: "", email: "", first_name: "", last_name: "",
   password: "", password_confirm: "", role: "STUDENT",
   phone_number: "", department: "", id_year: "",
+  emergency_contact_number: "", emergency_contact_name: "", emergency_contact_relation: "Parent",
   designation: "", education: "",
 };
 
@@ -257,6 +261,7 @@ export default function RegisterPage({ onGoLogin }) {
   const change = (key) => (e) => {
     let val = e.target.value;
     if (key === "phone_number") val = val.replace(/\D/g, "").slice(0, 10);
+    if (key === "emergency_contact_number") val = val.replace(/[^\d+]/g, "").slice(0, 15);
     setForm(f => ({ ...f, [key]: val }));
     setTouched(t => ({ ...t, [key]: true }));
     const err = (key === "password_confirm" || key === "designation" || key === "education")
@@ -414,16 +419,10 @@ export default function RegisterPage({ onGoLogin }) {
 
         {/* ── header ── */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16,
-            background: "linear-gradient(135deg, #581124, #722F37)",
-            margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 6px 20px rgba(88, 17, 36, 0.35)" }}>
-            <span style={{ color: "#FFFFFF", fontWeight: 800, fontSize: 24, letterSpacing: "-0.03em" }}>C</span>
-          </div>
-          <h1 style={{ margin: 0, fontSize: 28,
-            fontWeight: 800, color: "#581124", letterSpacing: "-0.02em" }}>Create your account</h1>
+          <h1 style={{ margin: 0, fontSize: 26,
+            fontWeight: 800, color: "#064E3B", letterSpacing: "-0.02em" }}>Create your account</h1>
           <p style={{ margin: "8px 0 0", fontSize: 14, color: "#065F46" }}>
-            Fill in all fields carefully. Your account will be reviewed by an Admin before activation.
+            Fill in all fields carefully. Your account will be reviewed by the College Administrator before activation.
           </p>
         </div>
 
@@ -432,13 +431,13 @@ export default function RegisterPage({ onGoLogin }) {
           <div style={{ display: "flex", justifyContent: "space-between",
             fontSize: 12, color: "#64748B", marginBottom: 8, fontWeight: 600 }}>
             <span>Form completion</span>
-            <span style={{ fontWeight: 800, color: progress === 100 ? "#16A34A" : "#8B1E3F" }}>{progress}%</span>
+            <span style={{ fontWeight: 800, color: progress === 100 ? "#16A34A" : "#059669" }}>{progress}%</span>
           </div>
           <div style={{ height: 6, background: "#E2E8F0", borderRadius: 99, overflow: "hidden" }}>
             <div style={{ height: "100%", borderRadius: 99, width: `${progress}%`,
               background: progress === 100
                 ? "linear-gradient(90deg, #16A34A, #22C55E)"
-                : "linear-gradient(90deg, #8B1E3F, #059669)",
+                : "linear-gradient(90deg, #10B981, #059669)",
               transition: "width 0.4s cubic-bezier(0.4, 0, 0.2, 1)" }} />
           </div>
         </div>
@@ -620,6 +619,86 @@ export default function RegisterPage({ onGoLogin }) {
             />
           </Section>
 
+          {/* ── SECTION 3: Emergency Contact Details (Auto SOS / Siren) ── */}
+          <Section
+            title="Emergency Distress Contact (Auto-SOS / Siren)"
+            subtitle="When you trigger Emergency SOS or Siren on campus, an immediate emergency distress SMS and WhatsApp alert with your live GPS location will be automatically dispatched to this phone number."
+          >
+            <div style={{
+              background: "#FEF2F2", border: "1.5px solid #FCA5A5",
+              borderRadius: 12, padding: "12px 16px", marginBottom: 18,
+              fontSize: 12.5, color: "#991B1B", lineHeight: 1.5,
+              display: "flex", alignItems: "flex-start", gap: 10,
+            }}>
+              <span style={{ fontSize: 20 }}>🚨</span>
+              <div>
+                <strong>Automatic Emergency Contact Notification Protocol:</strong> In an emergency, triggering the Siren or SOS button will automatically send an urgent alert with your live GPS coordinates, campus location, and incident details to this phone number.
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 20px" }}>
+              <Input
+                label="Emergency Contact Phone"
+                id="reg-emergency-phone"
+                type="tel"
+                value={form.emergency_contact_number}
+                onChange={change("emergency_contact_number")}
+                onBlur={blur("emergency_contact_number")}
+                error={errors.emergency_contact_number}
+                touched={touched.emergency_contact_number}
+                placeholder="e.g. 9876543210 or +919876543210"
+                inputMode="tel"
+                maxLength={15}
+                hint="Parent, Guardian or Spouse phone number"
+              />
+              <Input
+                label="Contact Person Name"
+                id="reg-emergency-name"
+                value={form.emergency_contact_name}
+                onChange={change("emergency_contact_name")}
+                onBlur={blur("emergency_contact_name")}
+                error={errors.emergency_contact_name}
+                touched={touched.emergency_contact_name}
+                placeholder="e.g. Father, Mother, Guardian name"
+                maxLength={100}
+                hint="Full name of emergency contact"
+              />
+            </div>
+
+            <div style={{ marginBottom: 16 }}>
+              <label htmlFor="reg-emergency-relation" style={{
+                display: "flex", alignItems: "center", gap: 4,
+                fontSize: 12, fontWeight: 700, letterSpacing: "0.05em", color: "#065F46",
+                textTransform: "uppercase", marginBottom: 6
+              }}>
+                Relationship to You <span style={{ color: "#DC2626", fontSize: 13 }}>*</span>
+              </label>
+              <select
+                id="reg-emergency-relation"
+                value={form.emergency_contact_relation}
+                onChange={change("emergency_contact_relation")}
+                style={{
+                  width: "100%", boxSizing: "border-box",
+                  padding: "12px 14px",
+                  border: "1.5px solid #A7F3D0",
+                  borderRadius: 10, fontSize: 14, fontFamily: "inherit",
+                  background: "#FFFFFF", color: "#064E3B", outline: "none",
+                }}
+              >
+                <option value="Parent">Parent (Father / Mother)</option>
+                <option value="Guardian">Guardian</option>
+                <option value="Spouse">Spouse / Partner</option>
+                <option value="Sibling">Sibling (Brother / Sister)</option>
+                <option value="Relative">Relative</option>
+                <option value="Friend">Friend / Roommate</option>
+                <option value="Other">Other Contact</option>
+              </select>
+              <p style={{ margin: "5px 0 0", fontSize: 12, color: "#64748B" }}>
+                Who campus authorities and automatic SMS should notify during emergency distress
+              </p>
+            </div>
+          </Section>
+
           {/* ── SECTION 3: Identity ── */}
           <Section
             title="Biometric & Identity Verification"
@@ -672,9 +751,9 @@ export default function RegisterPage({ onGoLogin }) {
           {/* ── submit ── */}
           <button type="submit" disabled={submitting}
             style={{ width: "100%", padding: "16px", borderRadius: 12, border: "none",
-              background: submitting ? "#94A3B8" : "linear-gradient(135deg, #8B1E3F, #722F37)",
+              background: submitting ? "#94A3B8" : "linear-gradient(135deg, #059669, #047857)",
               color: "#FFFFFF", fontSize: 16, fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer",
-              letterSpacing: "0.01em", boxShadow: submitting ? "none" : "0 8px 24px rgba(88, 17, 36, 0.4)",
+              letterSpacing: "0.01em", boxShadow: submitting ? "none" : "0 8px 24px rgba(5, 150, 105, 0.35)",
               transition: "all 0.2s ease", marginBottom: 24, marginTop: 8 }}>
             {submitting ? "Submitting Registration…" : "Create Account"}
           </button>
@@ -683,7 +762,7 @@ export default function RegisterPage({ onGoLogin }) {
         <div style={{ textAlign: "center", fontSize: 14, color: "#065F46", paddingBottom: 40 }}>
           Already have an account?{" "}
           <button onClick={onGoLogin} style={{ background: "none", border: "none",
-            color: "#8B1E3F", fontWeight: 700, cursor: "pointer", padding: 0, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 4 }}>
+            color: "#059669", fontWeight: 700, cursor: "pointer", padding: 0, fontSize: 14, textDecoration: "underline", textUnderlineOffset: 4 }}>
             Sign in
           </button>
         </div>

@@ -1,34 +1,38 @@
+import { SirenBeaconIcon } from "./EmergencySirenModal";
+
 export default function Navbar({ view, onNav, onEmergency }) {
   return (
     <nav style={{
-      background: "linear-gradient(90deg, #581124 0%, #722F37 100%)",
+      background: "#FFFFFF",
       display: "flex", alignItems: "center", justifyContent: "space-between",
       padding: "0 28px", height: 60,
-      borderBottom: "1px solid rgba(255,255,255,0.06)",
-      boxShadow: "0 4px 24px rgba(88, 17, 36, 0.35)",
+      borderBottom: "1.5px solid #A7F3D0",
+      boxShadow: "0 2px 16px rgba(5, 150, 105, 0.08)",
       position: "sticky", top: 0, zIndex: 20,
-      backdropFilter: "blur(12px)",
     }}>
       {/* brand */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{
-          width: 38, height: 38, borderRadius: 10,
-          background: "linear-gradient(135deg, #8B1E3F, #722F37)",
+          width: 34, height: 34, borderRadius: 8,
+          background: "linear-gradient(135deg, #059669 0%, #047857 100%)",
           display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#ffffff", fontWeight: 800, fontSize: 18,
-          boxShadow: "0 4px 14px rgba(201, 107, 133, 0.5)",
-          letterSpacing: "-0.02em",
+          color: "#FFFFFF",
+          boxShadow: "0 2px 8px rgba(5, 150, 105, 0.25)",
+          flexShrink: 0
         }}>
-          C
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 10v6M2 10l10-5 10 5-10 5z"/>
+            <path d="M6 12v5c3 3 9 3 12 0v-5"/>
+          </svg>
         </div>
         <div>
           <div style={{
-            fontSize: 18, fontWeight: 800, color: "#ffffff", letterSpacing: "-0.01em"
+            fontSize: 18, fontWeight: 800, color: "#065F46", letterSpacing: "-0.01em", display: "flex", alignItems: "center", gap: 8
           }}>
-            CEMS
+            <span>CEMS</span>
           </div>
           <div style={{
-            fontSize: 9, color: "rgba(203,213,225,0.8)", letterSpacing: "0.12em", fontWeight: 600
+            fontSize: 9, color: "#059669", letterSpacing: "0.12em", fontWeight: 700
           }}>
             COLLEGE EVENT MANAGEMENT
           </div>
@@ -41,39 +45,37 @@ export default function Navbar({ view, onNav, onEmergency }) {
           <button key={v} onClick={() => onNav(v)}
             style={{
               padding: "8px 20px", borderRadius: 9999,
-              border: `1.5px solid ${view === v ? "#8B1E3F" : "rgba(255, 255, 255, 0.15)"}`,
+              border: `1.5px solid ${view === v ? "#059669" : "#A7F3D0"}`,
               background: view === v
-                ? "linear-gradient(135deg, #8B1E3F, #722F37)"
-                : "rgba(255,255,255,0.04)",
-              color: view === v ? "#ffffff" : "rgba(203,213,225,0.9)",
-              fontSize: 13, fontWeight: 600, cursor: "pointer",
+                ? "linear-gradient(135deg, #10B981, #059669)"
+                : "#FFFFFF",
+              color: view === v ? "#ffffff" : "#065F46",
+              fontSize: 13, fontWeight: 700, cursor: "pointer",
               letterSpacing: "0.01em",
               transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
               textTransform: "capitalize",
-              boxShadow: view === v ? "0 4px 16px rgba(201, 107, 133, 0.4)" : "none",
+              boxShadow: view === v ? "0 4px 14px rgba(5, 150, 105, 0.25)" : "none",
             }}>
             {v}
           </button>
         ))}
 
-        {/* emergency button */}
+        {/* emergency button at top of page in navbar */}
         <button onClick={onEmergency}
           title="Emergency SOS: Scan Face or ID Card for emergency assistance"
           style={{
             display: "flex", alignItems: "center", gap: 7,
-            padding: "8px 18px", borderRadius: 9999, border: "none",
-            background: "linear-gradient(135deg, #dc2626, #b91c1c)",
-            color: "#ffffff",
-            fontSize: 13, fontWeight: 700, cursor: "pointer",
-            boxShadow: "0 4px 16px rgba(220, 38, 38, 0.35)",
+            padding: "8px 18px", borderRadius: 9999,
+            border: "1.5px solid #FCA5A5",
+            background: "#FEF2F2",
+            color: "#DC2626",
+            fontSize: 13, fontWeight: 800, cursor: "pointer",
+            boxShadow: "0 2px 8px rgba(220, 38, 38, 0.15)",
             marginLeft: 4,
             transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
           }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19.5 12.572L12 20l-7.5-7.428A5 5 0 1 1 12 6.006a5 5 0 1 1 7.5 6.572" fill="rgba(255,255,255,0.15)"/>
-            <path d="M3.5 12h3.5l1.5-4 2.5 8 2.5-6 1.5 2H20.5" stroke="#ffffff" strokeWidth="2"/>
-          </svg>
-          Emergency
+          <SirenBeaconIcon size={16} color="#DC2626" />
+          Emergency SOS
         </button>
       </div>
     </nav>

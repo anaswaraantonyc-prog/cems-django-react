@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, Label, Field, Stamp } from "../components/Shared";
 import { inputStyle, buttonStyle, sage, brick, maroonDark, gold } from "../theme";
 
@@ -217,6 +217,159 @@ export default function BookingModule({ role = "student", userName = "" }) {
   const [foodCategoryFilter, setFoodCategoryFilter] = useState("ALL");
   const [foodSearchQuery, setFoodSearchQuery] = useState("");
 
+  // ── Rebooking State & Cross-Sync with Principal ──
+  const [rebookingRequests, setRebookingRequests] = useState([]);
+  const [rebookingRemarks, setRebookingRemarks] = useState({});
+  const [actionLoadingReqId, setActionLoadingReqId] = useState(null);
+  const [rebookingTargetBooking, setRebookingTargetBooking] = useState(null);
+  const [rebookProposedDatetime, setRebookProposedDatetime] = useState("");
+  const [rebookDescription, setRebookDescription] = useState("");
+  const [isSubmittingRebook, setIsSubmittingRebook] = useState(false);
+  const [rebookToast, setRebookToast] = useState("");
+  const [canteenAcceptToast, setCanteenAcceptToast] = useState("");
+
+  const fetchRebookingRequests = useCallback(async () => {
+    const token = localStorage.getItem("cems_access");
+    let localReqs = [];
+    try {
+      const raw = localStorage.getItem("cems_rebooking_requests");
+      if (raw) localReqs = JSON.parse(raw);
+    } catch (e) {}
+
+    try {
+      const res = await fetch("/api/bookings/rebookings/", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const serverList = Array.isArray(data) ? data : data.results || [];
+        const map = new Map();
+        localReqs.forEach((item) => map.set(item.id, item));
+        serverList.forEach((item) => map.set(item.id, { ...map.get(item.id), ...item }));
+        const merged = Array.from(map.values()).sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+        setRebookingRequests(merged);
+        localStorage.setItem("cems_rebooking_requests", JSON.stringify(merged));
+      } else if (localReqs.length > 0) {
+        setRebookingRequests(localReqs);
+      }
+    } catch {
+      if (localReqs.length > 0) setRebookingRequests(localReqs);
+    }
+  }, []);
+
+  const handleReviewRebooking = async (reqId, decision) => {
+    setActionLoadingReqId(reqId);
+    const remarks = rebookingRemarks[reqId] || (decision === "APPROVED" ? "Slot approved by Principal. Payment mechanism is active." : "Rejected due to scheduling conflicts.");
+    const token = localStorage.getItem("cems_access");
+
+    try {
+      await fetch(`/api/bookings/rebookings/${reqId}/review/`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ decision, remarks }),
+      });
+    } catch (e) {}
+
+    setRebookingRequests((prev) => {
+      const updated = prev.map((r) => r.id === reqId ? { ...r, status: decision, principal_remarks: remarks, reviewed_at: new Date().toISOString() } : r);
+      try {
+        localStorage.setItem("cems_rebooking_requests", JSON.stringify(updated));
+        if (window.BroadcastChannel) {
+          const bc = new BroadcastChannel("cems_rebooking_channel");
+          bc.postMessage({ type: "REBOOK_UPDATED", data: updated });
+          bc.close();
+        }
+      } catch (e) {}
+      return updated;
+    });
+
+    setRebookToast(decision === "APPROVED" ? `✔ Rebooking #${reqId} Accepted! Payment mechanism is now ON for applicant.` : `✖ Rebooking #${reqId} rejected.`);
+    setTimeout(() => setRebookToast(""), 4500);
+    setActionLoadingReqId(null);
+    fetchUserBookings();
+  };
+
+  const handleSubmitNewRebooking = async (e) => {
+    e.preventDefault();
+    if (!rebookingTargetBooking) return;
+    if (!rebookProposedDatetime) {
+      alert("Please choose the requested new event date and time.");
+      return;
+    }
+    if (!rebookDescription || rebookDescription.trim().length < 10) {
+      alert("Please provide the logistical reason in the Rebooking Description Box (at least 10 characters).");
+      return;
+    }
+    setIsSubmittingRebook(true);
+    const token = localStorage.getItem("cems_access");
+    const rawId = rebookingTargetBooking.rawBackendId || parseInt(String(rebookingTargetBooking.id).replace(/\D/g, "")) || 1;
+
+    const newReq = {
+      id: Date.now(),
+      original_booking: rawId,
+      original_booking_title: rebookingTargetBooking.title,
+      original_booking_amount: String(rebookingTargetBooking.amount || "2000.00"),
+      original_booking_type: (rebookingTargetBooking.venue || "").toUpperCase().includes("AUDITORIUM") ? "AUDITORIUM" : (rebookingTargetBooking.venue || "").toUpperCase().includes("HOSTEL") ? "HOSTEL" : "CANTEEN",
+      original_booking_datetime: rebookingTargetBooking.date,
+      original_booking_status: "REBOOKING_REQUESTED",
+      requested_by: userName || "Student",
+      requested_by_id: 1,
+      requested_by_name: userName || "Campus Member",
+      requested_by_role: (activeRole || "STUDENT").toUpperCase(),
+      description: rebookDescription.trim(),
+      proposed_datetime: rebookProposedDatetime,
+      status: "PENDING",
+      reviewed_by: null,
+      principal_remarks: "",
+      reviewed_at: null,
+      created_at: new Date().toISOString(),
+      payment_status: "UNPAID",
+    };
+
+    try {
+      const res = await fetch("/api/bookings/rebookings/", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          original_booking: rawId,
+          proposed_datetime: rebookProposedDatetime,
+          description: rebookDescription.trim(),
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        Object.assign(newReq, created);
+      }
+    } catch (e) {}
+
+    setRebookingRequests((prev) => {
+      const updated = [newReq, ...prev.filter((r) => r.id !== newReq.id)];
+      try {
+        localStorage.setItem("cems_rebooking_requests", JSON.stringify(updated));
+        if (window.BroadcastChannel) {
+          const bc = new BroadcastChannel("cems_rebooking_channel");
+          bc.postMessage({ type: "REBOOK_UPDATED", data: updated });
+          bc.close();
+        }
+      } catch (e) {}
+      return updated;
+    });
+
+    setBookings((prev) => prev.map((b) => (b.id === rebookingTargetBooking.id ? { ...b, status: "REBOOKING_REQUESTED" } : b)));
+    setIsSubmittingRebook(false);
+    setRebookingTargetBooking(null);
+    setRebookProposedDatetime("");
+    setRebookDescription("");
+    setRebookToast("✔ Rebooking Request submitted to Principal for review!");
+    setTimeout(() => setRebookToast(""), 4500);
+  };
+
   useEffect(() => {
     setActiveRole(role);
   }, [role]);
@@ -227,6 +380,7 @@ export default function BookingModule({ role = "student", userName = "" }) {
       return typeof newBookingsOrFn === "function" ? newBookingsOrFn(prev) : newBookingsOrFn;
     });
   };
+
 
   // Fetch real backend bookings scoped strictly to the authenticated user
   const fetchUserBookings = () => {
@@ -271,6 +425,8 @@ export default function BookingModule({ role = "student", userName = "" }) {
             date: b.event_datetime ? b.event_datetime.split("T")[0] : b.date || "2026-09-10",
             status: b.status || "CONFIRMED",
             roomType: b.room_type || "N/A",
+            hostelType: b.hostel_type || (b.title && b.title.toLowerCase().includes("girl") ? "GIRLS" : "BOYS"),
+            adminReply: b.admin_reply || "",
             details: b.details || b.cancellation_reason || b.purpose || `${venueName} booking request recorded.`,
             submittedAt: b.created_at ? b.created_at.split("T")[0] : "2026-09-01",
             amount: Number(b.amount) || 0,
@@ -293,7 +449,50 @@ export default function BookingModule({ role = "student", userName = "" }) {
 
   useEffect(() => {
     fetchUserBookings();
-  }, [activeRole]);
+    fetchRebookingRequests();
+
+    const interval = setInterval(() => {
+      fetchRebookingRequests();
+      fetchUserBookings();
+    }, 3500);
+
+    let bc = null;
+    if (window.BroadcastChannel) {
+      bc = new BroadcastChannel("cems_rebooking_channel");
+      bc.onmessage = (ev) => {
+        if (ev.data?.type === "REBOOK_UPDATED" && Array.isArray(ev.data.data)) {
+          setRebookingRequests(ev.data.data);
+        } else {
+          fetchRebookingRequests();
+        }
+        fetchUserBookings();
+      };
+    }
+
+    let canteenBc = null;
+    if (window.BroadcastChannel) {
+      canteenBc = new BroadcastChannel("cems_canteen_channel");
+      canteenBc.onmessage = (ev) => {
+        if (ev.data?.type === "CANTEEN_STATUS_UPDATED") {
+          const { orderId, status, adminReply } = ev.data;
+          fetchUserBookings();
+          if (status === "CONFIRMED" || status === "APPROVED") {
+            setCanteenAcceptToast(`🍱 Canteen Staff has ACCEPTED order ${orderId}! ${adminReply ? `Notice: "${adminReply}"` : "Food preparation is in progress."}`);
+            setTimeout(() => setCanteenAcceptToast(""), 7000);
+          }
+        } else if (ev.data?.type === "CANTEEN_ORDER_CREATED") {
+          fetchUserBookings();
+        }
+      };
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (bc) bc.close();
+      if (canteenBc) canteenBc.close();
+    };
+  }, [activeRole, fetchRebookingRequests]);
+
 
   const isStudent = activeRole === "student";
   const isPrincipal = activeRole === "principal" || activeRole === "admin";
@@ -305,7 +504,22 @@ export default function BookingModule({ role = "student", userName = "" }) {
   const [hostelDurationType, setHostelDurationType] = useState("single");
   const [roomType, setRoomType] = useState("Single Room");
   const [acType, setAcType] = useState("Non-AC");
+  const [hostelType, setHostelType] = useState("BOYS");
   const [error, setError] = useState("");
+
+  // If student role is detected, Auditorium booking is not allowed; default to Hostel
+  useEffect(() => {
+    if (isStudent && venue === "Auditorium") {
+      setVenue("Hostel");
+    }
+  }, [isStudent, venue]);
+
+  // If student role is active, keep historyTab away from AUDITORIUM
+  useEffect(() => {
+    if (isStudent && historyTab === "AUDITORIUM") {
+      setHistoryTab("ALL");
+    }
+  }, [isStudent, historyTab]);
 
   // Hostel Mess Food state (Per day)
   const [hostelFoodByDay, setHostelFoodByDay] = useState({});
@@ -372,23 +586,18 @@ export default function BookingModule({ role = "student", userName = "" }) {
   const [paymentSuccessReceipt, setPaymentSuccessReceipt] = useState(null);
   const [selectedBookingForReceipt, setSelectedBookingForReceipt] = useState(null);
 
-  useEffect(() => {
-    if (isStudent && venue === "Auditorium") {
-      setVenue("Hostel");
-    }
-  }, [activeRole, isStudent, venue]);
-
   // Step 1: Validate Form & Go to Step 2 (Payment Method Page)
   const handleProceedToPayment = (e) => {
     e.preventDefault();
     setError("");
-    if (!eventName || !date || (venue === "Hostel" && hostelDurationType === "multiple" && !endDate)) {
-      setError("Please fill in all required event titles and dates.");
-      return;
-    }
 
     if (isStudent && venue === "Auditorium") {
       setError("⚠️ Students are not permitted to book the Auditorium. Only Faculty & Class Representatives can book the Auditorium.");
+      return;
+    }
+
+    if (!eventName || !date || (venue === "Hostel" && hostelDurationType === "multiple" && !endDate)) {
+      setError("Please fill in all required event titles and dates.");
       return;
     }
 
@@ -448,6 +657,7 @@ export default function BookingModule({ role = "student", userName = "" }) {
       date: hostelDurationType === "multiple" ? `${date} to ${endDate}` : date,
       status: "PENDING_APPROVAL",
       roomType: venue === "Hostel" ? `${roomType} (${acType})` : "N/A",
+      hostelType: venue === "Hostel" ? (hostelType || "BOYS") : "",
       amount: calculatedFee,
       details: bookingDetails,
       submittedAt: new Date().toISOString().split("T")[0],
@@ -544,6 +754,7 @@ export default function BookingModule({ role = "student", userName = "" }) {
           title: checkoutBooking.rawEventName || checkoutBooking.title,
           booking_type: bookingType,
           room_type: checkoutBooking.rawRoomType || checkoutBooking.roomType || "N/A",
+          hostel_type: checkoutBooking.hostelType || (bookingType === "HOSTEL" ? "BOYS" : ""),
           seats_or_units: checkoutBooking.rawTotalFoodQuantity || 1,
           amount: checkoutBooking.amount,
           event_datetime: checkoutBooking.rawDate ? `${checkoutBooking.rawDate}T10:00:00Z` : new Date().toISOString(),
@@ -585,16 +796,52 @@ export default function BookingModule({ role = "student", userName = "" }) {
       console.error("Backend booking/payment error:", err);
     }
 
+    const isCanteenBooking = String(checkoutBooking.venue || "").toLowerCase().includes("canteen") || String(checkoutBooking.venue || "").toLowerCase().includes("food");
+    const initialBookingStatus = isCanteenBooking ? "PENDING" : "CONFIRMED";
+
     const completedBooking = {
       ...checkoutBooking,
       id: realBookingId ? `BK-${realBookingId}` : checkoutBooking.id,
       rawBackendId: realBookingId,
-      status: "CONFIRMED",
+      status: initialBookingStatus,
       paymentStatus: "PAID",
       paymentMethod: payMethod,
       paymentTxnId: txnRef,
       paidAt: paidTime,
     };
+
+    if (isCanteenBooking) {
+      try {
+        const stored = localStorage.getItem("cems_canteen_orders");
+        let list = stored ? JSON.parse(stored) : [];
+        const formattedCanteenOrder = {
+          id: completedBooking.id,
+          rawBackendId: realBookingId,
+          title: completedBooking.title,
+          applicant: completedBooking.applicant,
+          applicantRole: completedBooking.applicantRole,
+          date: completedBooking.rawDate || completedBooking.date,
+          canteenStatus: "PENDING",
+          paymentStatus: "PAID",
+          paymentMethod: payMethod,
+          paymentTxnId: txnRef,
+          items: completedBooking.rawFoodQuantities || {},
+          details: completedBooking.details || "",
+          amount: completedBooking.amount,
+          submittedAt: new Date().toISOString().split("T")[0],
+          adminReply: "",
+          rejectionReason: "",
+        };
+        list = [formattedCanteenOrder, ...list.filter((x) => x.id !== completedBooking.id)];
+        localStorage.setItem("cems_canteen_orders", JSON.stringify(list));
+
+        if (window.BroadcastChannel) {
+          const bc = new BroadcastChannel("cems_canteen_channel");
+          bc.postMessage({ type: "CANTEEN_ORDER_CREATED", order: formattedCanteenOrder });
+          bc.close();
+        }
+      } catch (e) {}
+    }
 
     if (checkoutBooking.isNewForm) {
       setBookings((prev) => [completedBooking, ...prev]);
@@ -688,7 +935,61 @@ export default function BookingModule({ role = "student", userName = "" }) {
     canteen: bookings.filter((b) => b.venue.toLowerCase().includes("canteen") || b.venue.toLowerCase().includes("food")).length,
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status, venue = "") => {
+    const isCanteen = String(venue || "").toLowerCase().includes("canteen") || String(venue || "").toLowerCase().includes("food");
+    if (isCanteen) {
+      if (status === "CONFIRMED" || status === "APPROVED") {
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center" }}>
+            <span style={{
+              fontSize: 11, fontWeight: 800, color: "#15803D", background: "#DCFCE7",
+              border: "1.5px solid #86EFAC", padding: "4px 10px", borderRadius: 20,
+              display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap",
+              boxShadow: "0 1px 3px rgba(22,163,74,0.15)"
+            }}>
+              ✔ Accepted
+            </span>
+            <span style={{ fontSize: 10, color: "#166534", fontWeight: 700 }}>
+              👨‍🍳 Preparing Food
+            </span>
+          </div>
+        );
+      }
+      if (status.includes("PENDING")) {
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: 3, alignItems: "center" }}>
+            <span style={{
+              fontSize: 11, fontWeight: 800, color: "#B45309", background: "#FEF3C7",
+              border: "1.5px solid #FCD34D", padding: "4px 10px", borderRadius: 20,
+              display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap"
+            }}>
+              ⏳ Awaiting Accept
+            </span>
+            <span style={{ fontSize: 10, color: "#92400E", fontWeight: 600 }}>
+              Under Staff Review
+            </span>
+          </div>
+        );
+      }
+      if (status === "CANCELLED" || status === "REJECTED") {
+        return (
+          <span style={{
+            fontSize: 11, fontWeight: 800, color: "#B91C1C", background: "#FEE2E2",
+            border: "1.5px solid #FCA5A5", padding: "4px 10px", borderRadius: 20,
+            display: "inline-flex", alignItems: "center", gap: 4, whiteSpace: "nowrap"
+          }}>
+            ✖ Declined
+          </span>
+        );
+      }
+    }
+
+    if (status === "REBOOKING_REQUESTED") {
+      return <Stamp text="🔄 Rebooking Requested" tone="brass" />;
+    }
+    if (status === "REBOOKED") {
+      return <Stamp text="✅ Rebooking Authorized" tone="sage" />;
+    }
     if (status === "CONFIRMED" || status === "APPROVED") {
       return <Stamp text="Approved / Confirmed" tone="sage" />;
     }
@@ -701,6 +1002,7 @@ export default function BookingModule({ role = "student", userName = "" }) {
     return <Stamp text="Cancelled / Declined" tone="brick" />;
   };
 
+
   // Filtered Food Menu
   const displayedFoodMenu = FOOD_MENU.filter((item) => {
     const matchCat = foodCategoryFilter === "ALL" || item.category === foodCategoryFilter;
@@ -709,7 +1011,56 @@ export default function BookingModule({ role = "student", userName = "" }) {
   });
 
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", paddingBottom: 40 }}>
+    <div style={{ maxWidth: 960, margin: "0 auto", paddingBottom: 40, position: "relative" }}>
+      {/* ── Canteen Acceptance Real-Time Alert Toast ── */}
+      {canteenAcceptToast && (
+        <div style={{
+          position: "fixed",
+          top: 80,
+          right: 24,
+          zIndex: 9999,
+          background: "linear-gradient(135deg, #059669 0%, #064E3B 100%)",
+          color: "#FFFFFF",
+          padding: "16px 22px",
+          borderRadius: 14,
+          boxShadow: "0 10px 30px rgba(5, 150, 105, 0.45)",
+          display: "flex",
+          alignItems: "center",
+          gap: 14,
+          border: "2px solid #6EE7B7",
+          animation: "slideDown 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
+          maxWidth: 420,
+        }}>
+          <span style={{ fontSize: 28 }}>🍱</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 800, fontSize: 14, color: "#FDE68A" }}>
+              Canteen Order Accepted!
+            </div>
+            <div style={{ fontSize: 12, marginTop: 3, lineHeight: 1.4 }}>
+              {canteenAcceptToast}
+            </div>
+          </div>
+          <button
+            onClick={() => setCanteenAcceptToast("")}
+            style={{
+              background: "rgba(255,255,255,0.2)",
+              border: "none",
+              color: "#FFF",
+              borderRadius: "50%",
+              width: 24,
+              height: 24,
+              cursor: "pointer",
+              fontWeight: 800,
+              fontSize: 12,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {/* ══════════════════════════════════════════════════════════════
           PAGE 2: PAYMENT METHOD SELECTION
          ══════════════════════════════════════════════════════════════ */}
@@ -1548,8 +1899,9 @@ export default function BookingModule({ role = "student", userName = "" }) {
         <div>
           {/* ── Header Banner ── */}
           {isPrincipal ? (
-            <div
-              style={{
+            <>
+              <div
+                style={{
                 background: "linear-gradient(135deg, #581124 0%, #380A15 100%)",
                 border: "1.5px solid #FDE68A",
                 borderRadius: 12,
@@ -1571,7 +1923,157 @@ export default function BookingModule({ role = "student", userName = "" }) {
                 </div>
               </div>
             </div>
+
+            {/* ── Principal Rebooking Clearance Desk ── */}
+            <div
+              style={{
+                background: "linear-gradient(135deg, #FFFFFF 0%, #F0FDF4 100%)",
+                border: "2px solid #10B981",
+                borderRadius: 14,
+                padding: "20px 22px",
+                marginBottom: 24,
+                boxShadow: "0 6px 20px rgba(16, 185, 129, 0.12)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, flexWrap: "wrap", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 24 }}>🏛️</span>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#064E3B" }}>
+                      Principal Rebooking Clearance Desk
+                    </h3>
+                    <div style={{ fontSize: 12, color: "#059669", marginTop: 2 }}>
+                      Review dynamic calendar relocation requests and authorize applicant payment mechanism.
+                    </div>
+                  </div>
+                </div>
+                <div style={{
+                  background: rebookingRequests.filter(r => r.status === "PENDING").length > 0 ? "#DC2626" : "#059669",
+                  color: "#FFF", padding: "4px 12px", borderRadius: 20, fontSize: 11, fontWeight: 800,
+                  display: "flex", alignItems: "center", gap: 6,
+                }}>
+                  <span>{rebookingRequests.filter(r => r.status === "PENDING").length} PENDING REVIEW</span>
+                </div>
+              </div>
+
+              {rebookingRequests.filter(r => r.status === "PENDING").length === 0 ? (
+                <div style={{
+                  background: "#FFFFFF", border: "1px dashed #A7F3D0", borderRadius: 10,
+                  padding: "16px", textAlign: "center", color: "#059669", fontSize: 13, fontWeight: 600
+                }}>
+                  ✨ All incoming rebooking requests are cleared. No pending requests.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {rebookingRequests.filter(r => r.status === "PENDING").map((req) => (
+                    <div
+                      key={req.id}
+                      style={{
+                        background: "#FFFFFF",
+                        border: "1.5px solid #A7F3D0",
+                        borderRadius: 12,
+                        padding: "16px 18px",
+                        boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 8, marginBottom: 8 }}>
+                        <div>
+                          <div style={{ fontSize: 14, fontWeight: 800, color: "#064E3B" }}>
+                            {req.original_booking_title || `Booking #${req.original_booking}`}
+                          </div>
+                          <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>
+                            Applicant: <strong>{req.requested_by_name || req.requested_by || "Student"}</strong> ({req.requested_by_role || "STUDENT"}) · Booking #{req.original_booking} · Fee: ₹{req.original_booking_amount || "15,000"}
+                          </div>
+                        </div>
+                        <span style={{
+                          background: "#FEF3C7", color: "#92400E", padding: "3px 8px",
+                          borderRadius: 6, fontSize: 11, fontWeight: 700
+                        }}>
+                          ⏳ Awaiting Principal Authorization
+                        </span>
+                      </div>
+
+                      {/* Date Change Comparison */}
+                      <div style={{
+                        display: "flex", gap: 16, background: "#F8FAFC", padding: "10px 14px",
+                        borderRadius: 8, fontSize: 12, marginBottom: 10, flexWrap: "wrap"
+                      }}>
+                        <div>
+                          <span style={{ color: "#64748B", fontWeight: 600 }}>Original Date: </span>
+                          <span style={{ color: "#334155", fontWeight: 700 }}>
+                            {req.original_booking_datetime ? new Date(req.original_booking_datetime).toLocaleDateString() : "Scheduled slot"}
+                          </span>
+                        </div>
+                        <div style={{ color: "#059669", fontWeight: 800 }}>➔</div>
+                        <div>
+                          <span style={{ color: "#065F46", fontWeight: 600 }}>Requested New Date & Time: </span>
+                          <span style={{ color: "#059669", fontWeight: 800 }}>
+                            {req.proposed_datetime ? new Date(req.proposed_datetime).toLocaleString() : "New requested slot"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Rebooking Description Box */}
+                      <div style={{
+                        background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 8,
+                        padding: "10px 14px", marginBottom: 12
+                      }}>
+                        <div style={{ fontSize: 11, fontWeight: 800, color: "#065F46", textTransform: "uppercase", marginBottom: 4 }}>
+                          📝 Rebooking Description Box (Logistical Reason):
+                        </div>
+                        <div style={{ fontSize: 13, color: "#064E3B", fontStyle: "italic", lineHeight: 1.5 }}>
+                          "{req.description}"
+                        </div>
+                      </div>
+
+                      {/* Review Remarks and Action Buttons */}
+                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                        <input
+                          type="text"
+                          placeholder="Optional Principal remarks (e.g. Approved for Morning slot)..."
+                          value={rebookingRemarks[req.id] || ""}
+                          onChange={(e) => setRebookingRemarks({ ...rebookingRemarks, [req.id]: e.target.value })}
+                          style={{
+                            flex: 1, minWidth: 220, padding: "8px 12px", borderRadius: 6,
+                            border: "1px solid #CBD5E1", fontSize: 12, outline: "none",
+                          }}
+                        />
+                        <button
+                          type="button"
+                          disabled={actionLoadingReqId === req.id}
+                          onClick={() => handleReviewRebooking(req.id, "APPROVED")}
+                          style={{
+                            background: "linear-gradient(135deg, #059669, #047857)",
+                            color: "#FFFFFF", border: "none", borderRadius: 6,
+                            padding: "8px 16px", fontSize: 12, fontWeight: 800, cursor: "pointer",
+                            display: "flex", alignItems: "center", gap: 6,
+                            boxShadow: "0 2px 8px rgba(5,150,105,0.25)"
+                          }}
+                        >
+                          ✔ Accept & Authorize Rebooking
+                        </button>
+                        <button
+                          type="button"
+                          disabled={actionLoadingReqId === req.id}
+                          onClick={() => handleReviewRebooking(req.id, "REJECTED")}
+                          style={{
+                            background: "#FEE2E2", color: "#DC2626", border: "1px solid #FCA5A5",
+                            borderRadius: 6, padding: "8px 14px", fontSize: 12, fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          ✖ Reject
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
           ) : (
+
+
             <div
               style={{
                 background: isStudent ? "#F8FAFC" : "#F0FDF4",
@@ -1595,7 +2097,9 @@ export default function BookingModule({ role = "student", userName = "" }) {
                         : "Faculty Booking & Event History"}
                     </strong>
                     <div style={{ fontSize: 13, marginTop: 3, opacity: 0.9 }}>
-                      Create new bookings and track your separate Auditorium, Hostel, and Canteen booking history.
+                      {isStudent
+                        ? "Create new bookings and track your Hostel and Canteen booking history."
+                        : "Create new bookings and track your separate Auditorium, Hostel, and Canteen booking history."}
                     </div>
                   </div>
                 </div>
@@ -1663,6 +2167,76 @@ export default function BookingModule({ role = "student", userName = "" }) {
                     onChange={(e) => setEventName(e.target.value)}
                   />
                 </Field>
+
+                {/* Hostel Wing Selector (Boys Hostel vs Girls Hostel) */}
+                {venue === "Hostel" && (
+                  <div style={{ marginBottom: 14 }}>
+                    <Label>Select Hostel Wing / Category</Label>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 4 }}>
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "12px 14px",
+                          borderRadius: 8,
+                          border: `2px solid ${hostelType === "BOYS" ? "#065F46" : "#E2E8F0"}`,
+                          background: hostelType === "BOYS" ? "#F0FDF4" : "#FFFFFF",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="hostelTypeRadio"
+                          value="BOYS"
+                          checked={hostelType === "BOYS"}
+                          onChange={() => setHostelType("BOYS")}
+                          style={{ accentColor: "#065F46", width: 18, height: 18 }}
+                        />
+                        <div>
+                          <strong style={{ fontSize: 13, color: hostelType === "BOYS" ? "#065F46" : "#1E293B", display: "block" }}>
+                            🏢 Boys Hostel
+                          </strong>
+                          <span style={{ fontSize: 11, color: "#64748B" }}>
+                            Routes to Boys Hostel Warden (Amith)
+                          </span>
+                        </div>
+                      </label>
+
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 10,
+                          padding: "12px 14px",
+                          borderRadius: 8,
+                          border: `2px solid ${hostelType === "GIRLS" ? "#9D174D" : "#E2E8F0"}`,
+                          background: hostelType === "GIRLS" ? "#FDF2F8" : "#FFFFFF",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <input
+                          type="radio"
+                          name="hostelTypeRadio"
+                          value="GIRLS"
+                          checked={hostelType === "GIRLS"}
+                          onChange={() => setHostelType("GIRLS")}
+                          style={{ accentColor: "#9D174D", width: 18, height: 18 }}
+                        />
+                        <div>
+                          <strong style={{ fontSize: 13, color: hostelType === "GIRLS" ? "#9D174D" : "#1E293B", display: "block" }}>
+                            🌸 Girls Hostel
+                          </strong>
+                          <span style={{ fontSize: 11, color: "#64748B" }}>
+                            Routes to Girls Hostel Warden (Gracy)
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+                )}
 
                 {/* Hostel Room Selector */}
                 {venue === "Hostel" && (
@@ -1979,7 +2553,7 @@ export default function BookingModule({ role = "student", userName = "" }) {
             <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
               {[
                 { id: "ALL", label: `📋 All Bookings (${counts.all})`, icon: "📋" },
-                { id: "AUDITORIUM", label: `🎭 Auditorium (${counts.auditorium})`, icon: "🎭" },
+                ...(!isStudent ? [{ id: "AUDITORIUM", label: `🎭 Auditorium (${counts.auditorium})`, icon: "🎭" }] : []),
                 { id: "HOSTEL", label: `🏨 Hostel (${counts.hostel})`, icon: "🏨" },
                 { id: "CANTEEN", label: `🍱 Canteen / Food Catering (${counts.canteen})`, icon: "🍱" },
               ].map((tab) => (
@@ -2108,19 +2682,105 @@ export default function BookingModule({ role = "student", userName = "" }) {
                               {isAuditorium ? "🎭 Auditorium" : isHostel ? "🏨 Hostel" : "🍱 Canteen"}
                               {item.roomType && item.roomType !== "N/A" ? ` (${item.roomType})` : ""}
                             </div>
+                            {isHostel && (
+                              <div style={{ marginTop: 3 }}>
+                                {item.hostelType === "GIRLS" ? (
+                                  <span style={{ fontSize: 10, fontWeight: 800, color: "#9D174D", background: "#FCE7F3", padding: "1px 6px", borderRadius: 4 }}>
+                                    🌸 Girls Hostel
+                                  </span>
+                                ) : (
+                                  <span style={{ fontSize: 10, fontWeight: 800, color: "#065F46", background: "#D1FAE5", padding: "1px 6px", borderRadius: 4 }}>
+                                    🏢 Boys Hostel
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             <div style={{ fontSize: 11, color: "#334155", marginTop: 2, fontWeight: 600 }}>
                               📅 {item.date}
                             </div>
                           </td>
 
-                          {/* Details Summary */}
-                          <td style={{ padding: "10px 12px", verticalAlign: "top", maxWidth: 220 }}>
+                          {/* Details Summary & Staff Reply / Canteen Acceptance Mechanism */}
+                          <td style={{ padding: "10px 12px", verticalAlign: "top", maxWidth: 260 }}>
                             <div style={{
                               fontSize: 11, color: "#475569", lineHeight: 1.4,
                               display: "-webkit-box", WebkitLineClamp: 3, WebkitBoxOrient: "vertical", overflow: "hidden"
                             }}>
                               {item.details}
                             </div>
+
+                            {/* Canteen Specific Acceptance & Pickup Display */}
+                            {isCanteen && (item.status === "CONFIRMED" || item.status === "APPROVED") && (
+                              <div style={{
+                                marginTop: 8,
+                                padding: "8px 10px",
+                                background: "linear-gradient(135deg, #ECFDF5 0%, #DCFCE7 100%)",
+                                border: "1.5px solid #86EFAC",
+                                borderRadius: 8,
+                                boxShadow: "0 2px 6px rgba(16,185,129,0.12)",
+                              }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: 5, color: "#166534", fontWeight: 800, fontSize: 11 }}>
+                                  <span>✅</span>
+                                  <span>Accepted by Canteen Staff</span>
+                                </div>
+                                <div style={{ fontSize: 11, color: "#15803D", marginTop: 3, fontWeight: 600 }}>
+                                  {item.adminReply ? (
+                                    <span>💬 <strong>Pickup Notice:</strong> {item.adminReply}</span>
+                                  ) : (
+                                    <span>Food order confirmed! Canteen is preparing your items.</span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            {isCanteen && item.status.includes("PENDING") && (
+                              <div style={{
+                                marginTop: 8,
+                                padding: "6px 9px",
+                                background: "#FFFBEB",
+                                border: "1.5px solid #FCD34D",
+                                borderRadius: 8,
+                                fontSize: 11,
+                                color: "#92400E",
+                              }}>
+                                <div style={{ fontWeight: 800, display: "flex", alignItems: "center", gap: 4 }}>
+                                  <span>⏳</span>
+                                  <span>Awaiting Canteen Acceptance</span>
+                                </div>
+                                <div style={{ fontSize: 10, marginTop: 2, color: "#B45309" }}>
+                                  Order placed & paid. Canteen staff will accept and start preparation shortly.
+                                </div>
+                              </div>
+                            )}
+
+                            {isCanteen && (item.status === "CANCELLED" || item.status === "REJECTED") && (
+                              <div style={{
+                                marginTop: 8,
+                                padding: "6px 9px",
+                                background: "#FEF2F2",
+                                border: "1.5px solid #FCA5A5",
+                                borderRadius: 8,
+                                fontSize: 11,
+                                color: "#B91C1C",
+                              }}>
+                                <div style={{ fontWeight: 800 }}>❌ Order Declined by Canteen</div>
+                                {item.adminReply && <div style={{ fontSize: 10, marginTop: 2 }}>Reason: {item.adminReply}</div>}
+                              </div>
+                            )}
+
+                            {!isCanteen && item.adminReply && (
+                              <div style={{
+                                marginTop: 6,
+                                padding: "6px 8px",
+                                background: "#EFF6FF",
+                                border: "1px solid #BFDBFE",
+                                borderRadius: 6,
+                                fontSize: 11,
+                                color: "#1E40AF",
+                              }}>
+                                <strong>💬 Staff Reply:</strong> {item.adminReply}
+                              </div>
+                            )}
                           </td>
 
                           {/* Amount & Payment Status */}
@@ -2132,7 +2792,8 @@ export default function BookingModule({ role = "student", userName = "" }) {
                               {item.paymentStatus === "PAID" ? (
                                 <span style={{
                                   fontSize: 10, fontWeight: 800, color: "#15803D",
-                                  background: "#DCFCE7", padding: "2px 6px", borderRadius: 4
+                                  background: "#DCFCE7", padding: "2px 6px", borderRadius: 4,
+                                  whiteSpace: "nowrap"
                                 }}>
                                   ✅ Paid ({item.paymentMethod || "UPI"})
                                 </span>
@@ -2156,7 +2817,7 @@ export default function BookingModule({ role = "student", userName = "" }) {
 
                           {/* Status Badge */}
                           <td style={{ padding: "10px 12px", verticalAlign: "top", textAlign: "center" }}>
-                            {getStatusBadge(item.status)}
+                            {getStatusBadge(item.status, item.venue)}
                           </td>
 
                           {/* Actions */}
@@ -2188,6 +2849,52 @@ export default function BookingModule({ role = "student", userName = "" }) {
                                 >
                                   💳 Pay Now
                                 </button>
+                              )}
+
+                              {/* Rebook action for confirmed/completed bookings */}
+                              {!isPrincipal && (item.status === "CONFIRMED" || item.status === "COMPLETED") && (
+                                <button
+                                  type="button"
+                                  onClick={() => setRebookingTargetBooking(item)}
+                                  style={{
+                                    background: "#F0FDF4", border: "1px solid #A7F3D0",
+                                    borderRadius: 6, padding: "4px 8px", fontSize: 11,
+                                    fontWeight: 700, color: "#065F46", cursor: "pointer",
+                                    whiteSpace: "nowrap"
+                                  }}
+                                  title="Request date/time relocation"
+                                >
+                                  🔄 Rebook
+                                </button>
+                              )}
+
+                              {/* Rebooking status indicator or authorization */}
+                              {item.status === "REBOOKING_REQUESTED" && (
+                                isPrincipal ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const match = rebookingRequests.find(r => r.original_booking === item.rawBackendId || r.original_booking === parseInt(String(item.id).replace(/\D/g, "")));
+                                      if (match) handleReviewRebooking(match.id, "APPROVED");
+                                    }}
+                                    style={{
+                                      background: "#059669", color: "#FFF", border: "none",
+                                      borderRadius: 6, padding: "4px 8px", fontSize: 10,
+                                      fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap"
+                                    }}
+                                    title="Accept & Authorize Rebooking"
+                                  >
+                                    ✔ Authorize
+                                  </button>
+                                ) : (
+                                  <span style={{
+                                    fontSize: 10, color: "#92400E", fontWeight: 700,
+                                    background: "#FEF3C7", padding: "2px 6px", borderRadius: 4,
+                                    whiteSpace: "nowrap"
+                                  }}>
+                                    ⏳ In Principal Review
+                                  </span>
+                                )
                               )}
 
                               {/* Principal Approval Actions */}
@@ -2229,8 +2936,114 @@ export default function BookingModule({ role = "student", userName = "" }) {
               </div>
             )}
           </Card>
+
+          {/* ── Modal: Rebooking Submission from Booking History ── */}
+          {rebookingTargetBooking && (
+            <div style={{
+              position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+              background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              zIndex: 9999, padding: 16
+            }}>
+              <div style={{
+                background: "#FFFFFF", borderRadius: 16, maxWidth: 520, width: "100%",
+                border: "2px solid #10B981", boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
+                padding: "24px 28px"
+              }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <span style={{ fontSize: 22 }}>🔄</span>
+                    <h3 style={{ margin: 0, fontSize: 17, fontWeight: 800, color: "#064E3B" }}>
+                      Request Event Rebooking & Relocation
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setRebookingTargetBooking(null)}
+                    style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#64748B" }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: 10, padding: "12px 14px", marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 800, color: "#064E3B" }}>
+                    {rebookingTargetBooking.title}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#059669", marginTop: 2 }}>
+                    {rebookingTargetBooking.venue} · Scheduled for {rebookingTargetBooking.date} · ₹{rebookingTargetBooking.amount}
+                  </div>
+                </div>
+
+                <form onSubmit={handleSubmitNewRebooking}>
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#064E3B", marginBottom: 6, textTransform: "uppercase" }}>
+                      Requested New Event Date & Time *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={rebookProposedDatetime}
+                      onChange={(e) => setRebookProposedDatetime(e.target.value)}
+                      style={{
+                        width: "100%", padding: "10px 12px", borderRadius: 8,
+                        border: "1.5px solid #A7F3D0", fontSize: 13, outline: "none",
+                        background: "#F8FAFC", color: "#064E3B"
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: 18 }}>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#064E3B", marginBottom: 6, textTransform: "uppercase" }}>
+                      Rebooking Description Box (Logistical Reason) *
+                    </label>
+                    <textarea
+                      required
+                      rows={4}
+                      placeholder="Explain the logistical reason for this date change (e.g., flight rescheduling of chief guest, monsoon weather, semester exams shift)..."
+                      value={rebookDescription}
+                      onChange={(e) => setRebookDescription(e.target.value)}
+                      style={{
+                        width: "100%", padding: "10px 12px", borderRadius: 8,
+                        border: "1.5px solid #A7F3D0", fontSize: 13, outline: "none",
+                        background: "#F8FAFC", color: "#064E3B", resize: "vertical"
+                      }}
+                    />
+                    <div style={{ fontSize: 11, color: "#059669", marginTop: 4 }}>
+                      This request will be sent directly to the Principal's clearance desk for authorization.
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      onClick={() => setRebookingTargetBooking(null)}
+                      style={{
+                        background: "#F1F5F9", color: "#475569", border: "none",
+                        borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer"
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isSubmittingRebook}
+                      style={{
+                        background: "linear-gradient(135deg, #059669, #047857)", color: "#FFFFFF",
+                        border: "none", borderRadius: 8, padding: "9px 18px", fontSize: 13,
+                        fontWeight: 800, cursor: "pointer", boxShadow: "0 2px 8px rgba(5,150,105,0.25)"
+                      }}
+                    >
+                      {isSubmittingRebook ? "Submitting…" : "📤 Submit Rebooking to Principal"}
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       )}
+
 
       {/* ══════════════════════════════════════════════════════════════
           MODAL: DIGITAL PAYMENT RECEIPT FOR HISTORICAL ITEMS

@@ -2,14 +2,13 @@ import { useState, useEffect, useCallback } from "react";
 import { maroon, maroonDark, maroonSoft, gold, line } from "../theme";
 import UserProfileModal from "../components/UserProfileModal";
 
+import { resolveMediaUrl } from "../apiConfig";
+
 /* ═══════════════════════════════════════════════════════════
    HELPERS
 ═══════════════════════════════════════════════════════════ */
-const MEDIA_BASE = "http://127.0.0.1:8000";
-
 function absUrl(src) {
-  if (!src) return null;
-  return src.startsWith("http") ? src : `${MEDIA_BASE}${src}`;
+  return resolveMediaUrl(src);
 }
 
 function authHeader() {
@@ -586,6 +585,14 @@ export default function RegistrationModule() {
                               <span>{u.department}</span>
                             </div>
                           )}
+                          {u.emergency_contact_number && (
+                            <div style={{ fontSize: 12, color: "#991B1B", background: "#FEF2F2",
+                              padding: "4px 8px", borderRadius: 6, border: "1px solid #FECACA",
+                              display: "flex", alignItems: "center", gap: 6, marginTop: 4 }}>
+                              <span style={{ fontSize: 13 }}>🚨</span>
+                              <span><strong>SOS Contact:</strong> {u.emergency_contact_name || "Emergency"} ({u.emergency_contact_relation || "Parent"}): {u.emergency_contact_number}</span>
+                            </div>
+                          )}
                         </div>
 
                         <div style={{ fontSize: 11, color: "#B0928A", marginTop: 10 }}>
@@ -874,6 +881,15 @@ export default function RegistrationModule() {
                     {(u.college_id?.id_year || u.college_id?.id_number) && (
                       <div style={{ fontSize: 11, color: "#78350F", marginTop: 4, fontFamily: "monospace" }}>
                         🪪 ID Year: {u.college_id.id_year || u.college_id.id_number}
+                      </div>
+                    )}
+
+                    {u.emergency_contact_number && (
+                      <div style={{ fontSize: 11.5, color: "#991B1B", marginTop: 4, display: "flex", alignItems: "center", gap: 5 }}>
+                        <span>🚨 SOS Contact:</span>
+                        <strong>{u.emergency_contact_name || "Emergency"}</strong>
+                        <span>({u.emergency_contact_relation || "Parent"}):</span>
+                        <span>{u.emergency_contact_number}</span>
                       </div>
                     )}
                   </div>
